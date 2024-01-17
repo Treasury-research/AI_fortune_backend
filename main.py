@@ -3,7 +3,6 @@ import json
 import os
 import time
 from flask import Flask, Response, request, stream_with_context, jsonify
-from flask_cors import CORS
 import os
 import requests
 import random
@@ -55,7 +54,12 @@ pool = PooledDB(
 logging.basicConfig(filename='AI_fortune.log', level=logging.DEBUG, 
                     format='%(asctime)s - %(levelname)s - %(message)s')
 app = Flask(__name__)
-CORS(app)
+# 跨域支持
+def after_request(resp):
+    resp.headers['Access-Control-Allow-Origin'] = '*'
+    return resp
+
+app.after_request(after_request)
 # Your existing ChatGPT class here (no changes needed)
 class TiDBManager:
     def __init__(self):
