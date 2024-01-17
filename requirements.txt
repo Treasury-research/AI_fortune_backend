@@ -31,3 +31,4 @@ urllib3==1.25.1
 uuid==1.30
 Werkzeug==3.0.1
 yarl==1.9.4
+Flask-Cors==4.0.0

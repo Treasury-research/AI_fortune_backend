@@ -55,11 +55,8 @@ logging.basicConfig(filename='AI_fortune.log', level=logging.DEBUG,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 app = Flask(__name__)
 # 跨域支持
-def after_request(resp):
-    resp.headers['Access-Control-Allow-Origin'] = '*'
-    return resp
+CORS(app, resources=r'/*')
 
-app.after_request(after_request)
 # Your existing ChatGPT class here (no changes needed)
 class TiDBManager:
     def __init__(self):
