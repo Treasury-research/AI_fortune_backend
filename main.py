@@ -3,6 +3,7 @@ import json
 import os
 import time
 from flask import Flask, Response, request, stream_with_context, jsonify
+from flask_cors import CORS
 import os
 import requests
 import random
