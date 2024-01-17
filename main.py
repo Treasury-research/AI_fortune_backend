@@ -296,7 +296,7 @@ class ChatGPT:
         # print(self.messages)
         # Send the entire conversation history to GPT
         rsp = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo-16k",
+            model="gpt-3.5-turbo-1106",
             messages=self.messages,
             stream=True
         )
@@ -501,9 +501,9 @@ def test():
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000, debug=True)
-    # year = '2000'
-    # month = '5'
-    # day = '5'
+    # year = '2002'
+    # month = '2'
+    # day = '1'
     # time = '8'
     # g = True
     # b = False

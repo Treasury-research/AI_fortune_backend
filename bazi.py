@@ -9,7 +9,7 @@ import collections
 import pprint
 import datetime
 
-from lunar_python import Lunar
+from lunar_python import Lunar, Solar
 from colorama import init
 
 from datas import *
@@ -1722,30 +1722,37 @@ def baziAnalysis(options):
     import json
 
     content = f"""我希望你作为一个八字占卜推理师，按照"年 月 日 时"的排列信息给你八字，然后你对八字进行命运和出身的分析，要求分析尽可能丰富，要求输出使用文言文。可以参考的书籍如《三命通命》等。
-    输出的格式为Json，返回的Json格式如下：
-        {{
-        "mingyun":"xxx",
-        "chushen":"xxxx"
-        }}
     注意只返回命运和出身相关的信息，其他信息不需要，避免返回'兹八字'，'参考xxx'，'依据八字','八字分析，皆依古籍而论，实际人生，以个人之努力与机遇为转机点。此乃娱乐之辩，切勿过信。'等不相干的言论。
-    八字：{ba}"""
+    八字：{ba}
+    
+    输出的格式为json，返回的json格式如下：
+    {{
+    "mingyun":"xxx",
+    "chushen":"xxxx"
+    }}
+    """
 
     completion = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo-16k",
+        model="gpt-3.5-turbo-1106",
         messages=[
             {"role": "user",
             "content": content}
         ],
     )
-    string_res = completion["choices"][0]["message"]["content"]
-    # print(string_res)
-    gpt_res = json.loads(string_res)
+    string_res = completion["choices"][0]["message"]["content"].strip()
+    print(string_res)
+    # gpt_res = json.loads(string_res)
 
     print("\n\n命")    
     print("="*120)  
-    for i in gpt_res["mingyun"].split("。"):
-        if len(i)>0:
-            print(i+"。")
+    try:
+        gpt_res = json.loads(string_res)
+        for i in gpt_res["mingyun"].split("。"):
+            if len(i)>0:
+                print(i+"。")
+    except:
+        pass
+
     if sum_index in summarys:
         # print("\n\n命")    
         # print("=========================")      
@@ -1769,12 +1776,14 @@ def baziAnalysis(options):
                 #break        
             birthday += datetime.timedelta(days=direction)
             count += 1
-        # ages = [(round(count/3 + 10*i), round(int(options.year) + 10*i + count//3)) for i in range(12)]
+        ages = [(round(count/3 + 10*i), round(int(options.year) + 10*i + count//3)) for i in range(12)]
         # print(ages)
         current_year = datetime.datetime.now().year
-        ages = [(round(count/3 + 10*i), round(current_year + 10*i + count//3)) for i in range(2)]
-        # print(ages)
-
+        # print(current_year, count)
+        # ages = [(round(count/3 + 10*i), round(current_year + 10*i + count//3)) for i in range(2)]
+        # for (seq, value) in enumerate(ages):
+        #     print(seq,value)
+   
         for (seq, value) in enumerate(ages):
             gan_ = dayuns[seq][0]
             zhi_ = dayuns[seq][1]
@@ -1810,7 +1819,7 @@ def baziAnalysis(options):
                 zhi_, yinyang(zhi_), ten_deities[me][zhi_], zhi5_, zhi__,empty, fu, nayins[(gan_, zhi_)], ten_deities[me][zhi_]) 
             gan_index = Gan.index(gan_)
             zhi_index = Zhi.index(zhi_)
-            
+            # 10年的大运打印
             out = out + jia + get_shens(gans, zhis, gan_, zhi_)
             
             print(out)
@@ -1819,7 +1828,13 @@ def baziAnalysis(options):
             if value[0] > 100:
                 continue
             for i in range(10):
-                day2 = sxtwl.fromSolar(value[1] + i, 5, 1)       
+                _year = value[1] + i
+                if _year<current_year:
+                    continue
+                if _year-current_year>20:
+                    continue
+
+                day2 = sxtwl.fromSolar(value[1] + i, 5, 1)    
                 yTG = day2.getYearGZ()
                 gan2_ = Gan[yTG.tg]
                 zhi2_ = Zhi[yTG.dz]
@@ -1844,10 +1859,12 @@ def baziAnalysis(options):
                 empty = chr(12288)
                 if zhi2_ in empties[zhus[2]]:
                     empty = '空'       
-                out = "{1:>3d} {2:<5d}{3} {15} {14} {13}  {4}:{5}{8}{6:{0}<6s}{12}{7}{8}{9} - {10:{0}<13s} {11}".format(
-                    chr(12288), int(value[0]) + i, value[1] + i, gan2_+zhi2_,ten_deities[me][gan2_], gan2_,check_gan(gan2_, gans2), 
+                # out = "{1:>3d} {2:<5d}{3} {15} {14} {13}  {4}:{5}{8}{6:{0}<6s}{12}{7}{8}{9} - {10:{0}<13s} {11}".format(
+                #     chr(12288), int(value[0]) + i, value[1] + i, gan2_+zhi2_,ten_deities[me][gan2_], gan2_,check_gan(gan2_, gans2), 
+                #     zhi2_, yinyang(zhi2_), ten_deities[me][zhi2_], zhi6_, zhi__,empty, fu2, nayins[(gan2_, zhi2_)], ten_deities[me][zhi2_]) 
+                out = "{1} {2} {3} {15} {14} {13}  {4}:{5}{8}{6:{0}<6s}{12}{7}{8}{9} - {10:{0}<13s} {11}".format(
+                    chr(12288), chr(12288), value[1] + i, gan2_+zhi2_,ten_deities[me][gan2_], gan2_,check_gan(gan2_, gans2), 
                     zhi2_, yinyang(zhi2_), ten_deities[me][zhi2_], zhi6_, zhi__,empty, fu2, nayins[(gan2_, zhi2_)], ten_deities[me][zhi2_]) 
-                
                 jia = ""
                 if gan2_ in gans2:
                     for i in range(5):
@@ -1874,8 +1891,23 @@ def baziAnalysis(options):
                 if set('辰戌丑未').issubset(all_zhis) and len(set('辰戌丑未')&set(zhis)) == 2 :
                     out = out + "  四库：辰戌丑未"             
                 print(out)
-                
-            
+                solar = Solar(int(options.year), int(options.month), int(options.day), int(options.time), 0, 0)
+                lunar = solar.getLunar()
+                baZi = lunar.getEightChar()
+                daYunArr = yun.getDaYun()
+                for i in range(0, len(daYunArr)):
+                    liuNianArr = daYunArr[i].getLiuNian()
+                    for i in range(0, len(liuNianArr)):
+                        liuNian = liuNianArr[i]
+                        if liuNian.getYear()==_year:
+                            liuYueArr = liuNianArr[i].getLiuYue()
+                            for i in range(0, len(liuYueArr)):
+                                liuYue = liuYueArr[i]
+                                print("    "+str(liuYue.getMonthInChinese()) + '月 :' + liuYue.getGanZhi(), end='   ')
+                            print()  # 在最后打印一个换行符，以便后续的输出不会紧接着这行
+                                # liuYue = liuYueArr[i]
+                                # print(str(liuYue.getMonthInChinese()) + '月 ' + liuYue.getGanZhi())
+
         # print(count/3)
         #print(list(zip(ages, dayuns)))
         
@@ -1901,9 +1933,9 @@ def baziAnalysis(options):
 
     print("="*120)   
 
-    print("流月分析")
-    print("="*120)   
-    
+    # print("流月分析")
+    # print("="*120)   
+
 
     # 格局分析
     ge = ''
@@ -2017,9 +2049,13 @@ def baziAnalysis(options):
         birth = '一般'
 
     print("出身:", birth)    
-    for i in gpt_res["chushen"].split("。"):
-        if len(i)>0:
-            print(i+"。")
+    try:
+        gpt_res = json.loads(string_res)
+        for i in gpt_res["chushen"].split("。"):
+            if len(i)>0:
+                print(i+"。")
+    except:
+        pass
     guan_num = shens.count("官")
     sha_num = shens.count("杀")
     cai_num = shens.count("财")
