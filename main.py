@@ -330,8 +330,9 @@ def stream_output(message, user_id):
     # for data in streams:
     #     print(data)
     #     yield(data)
-    yield f"<chunk>{message}</chunk><chunk>{{'user_id':'{user_id}'}}</chunk>"
-
+    user_data = {'user_id':{user_id}}
+    json_user_data = json.dumps(user_data)
+    yield f"{message}<chunk>{json_user_data}</chunk>"
 
 
 @app.route('/api/baziAnalysis',methods=['POST','GET'])
