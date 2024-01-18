@@ -349,6 +349,12 @@ def baziAnalysis_stream():
         year = request.get_json().get("year")
         month = request.get_json().get("month")
         day = request.get_json().get("day")
+        try:
+            year = int(year)
+            month = int(month)
+            day = int(day)
+        except:
+            return jsonify({"error":"无效的数据格式"}, 400)
         time = request.get_json().get("time")
         n = request.get_json().get("n")
         time = int(int(time.split("-")[0])  + int(time.split("-")[1]) / 2 ) # 提取开始小时
@@ -385,6 +391,12 @@ def baziMatchRes():
         tidb_manager = TiDBManager()
         data = request.get_json()
         year,month,day,t_ime,user_id,n = data['year'], data['month'], data['day'], data['time'], data['user_id'], data['n']
+        try:
+            year = int(year)
+            month = int(month)
+            day = int(day)
+        except:
+            return jsonify({"error":"无效的数据格式"}, 400)
         t_ime = int(int(t_ime.split("-")[0])  + int(t_ime.split("-")[1]) / 2 ) # 提取开始小时
         birthday = tidb_manager.select_birthday(user_id)
         bazi_info = tidb_manager.select_baziInfo(user_id)
