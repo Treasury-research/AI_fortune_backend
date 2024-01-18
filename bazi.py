@@ -1740,7 +1740,7 @@ def baziAnalysis(options):
         ],
     )
     string_res = completion["choices"][0]["message"]["content"].strip()
-    print(string_res)
+    # print(string_res)
     # gpt_res = json.loads(string_res)
 
     print("\n\n命")    

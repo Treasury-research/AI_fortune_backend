@@ -330,7 +330,7 @@ def stream_output(message, user_id):
     # for data in streams:
     #     print(data)
     #     yield(data)
-    yield f"<chunk>{message}</chunk><chunk>{{'user_id':{user_id}}}</chunk>"
+    yield f"<chunk>{message}</chunk><chunk>{{'user_id':'{user_id}'}}</chunk>"
 
 
 
