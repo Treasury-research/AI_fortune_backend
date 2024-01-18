@@ -52,7 +52,7 @@ pool = PooledDB(
     }
 )
 # 配置日志记录
-logging.basicConfig(filename='AI_fortune.log', level=logging.DEBUG, 
+logging.basicConfig(filename='AI_fortune.log', level=logging.DEBUG, encoding='utf-8',
                     format='%(asctime)s - %(levelname)s - %(message)s')
 app = Flask(__name__)
 # 跨域支持
@@ -111,23 +111,20 @@ class TiDBManager:
             return False
 
 
-    def insert_conversation(self, user_id, conversation_id, human_message=None, AI_message=None):
-        try:
-            generated_uuid = str(uuid.uuid4())
-            with self.db.cursor() as cursor:
-                if human_message and AI_message:
-                    sql = """
-                        INSERT INTO AI_fortune_conversation (id, user_id, conversation_id, human, AI) VALUES (%s, %s, %s, %s, %s)
-                        """
-                    cursor.execute(sql, (generated_uuid, user_id, conversation_id, human_message, AI_message))
-                else:
-                    logging.info(f"Insert conversation error where conversation_id = {conversation_id}")
-                    return False
-            self.db.commit()
-            logging.info(f"Insert conversation success where conversation_id = {conversation_id}")
-            return True
-        except:
-            return False
+    def insert_conversation(self, conversation_id, human_message=None, AI_message=None):
+        generated_uuid = str(uuid.uuid4())
+        with self.db.cursor() as cursor:
+            if human_message and AI_message:
+                sql = """
+                    INSERT INTO AI_fortune_conversation (id, conversation_id, human, AI) VALUES (%s, %s, %s, %s)
+                    """
+                cursor.execute(sql, (generated_uuid, conversation_id, human_message, AI_message))
+            else:
+                logging.info(f"Insert conversation error where conversation_id = {conversation_id}")
+                return False
+        self.db.commit()
+        logging.info(f"Insert conversation success where conversation_id = {conversation_id}")
+
 
     def get_user_id(self, conversation_id):
         with self.db.cursor() as cursor:
@@ -166,25 +163,30 @@ class TiDBManager:
 
             # 生辰八字和对应的批文：{res[0]}
             # """
-    def insert_baziInfo(self, user_id, birthday, bazi_info, birthday_match=None):
+    def insert_baziInfo(self, user_id, birthday, bazi_info, conversation_id, birthday_match=None):
         generated_uuid = str(uuid.uuid4())
+        logging.info(f"insert_baziInfo{user_id, birthday, conversation_id}")
         with self.db.cursor() as cursor:
             if birthday_match:
                 sql = """
-                    INSERT INTO AI_fortune_bazi (id, user_id, birthday, birthday_match, bazi_info) VALUES (%s, %s, %s, %s, %s)
+                    INSERT INTO AI_fortune_bazi (id, user_id, birthday, birthday_match, bazi_info,conversation_id) VALUES (%s, %s, %s, %s, %s, %s)
                     """
-                cursor.execute(sql, (generated_uuid, user_id, birthday, birthday_match, bazi_info))
+                cursor.execute(sql, (generated_uuid, user_id, birthday, birthday_match, bazi_info, conversation_id))
             else:
                 sql = """
-                    INSERT INTO AI_fortune_bazi (id, user_id, birthday, bazi_info) VALUES (%s, %s, %s, %s)
+                    INSERT INTO AI_fortune_bazi (id, user_id, birthday, bazi_info, conversation_id) VALUES (%s, %s, %s, %s, %s)
                     """
-                cursor.execute(sql, (generated_uuid, user_id, birthday, bazi_info))
+                cursor.execute(sql, (generated_uuid, user_id, birthday, bazi_info, conversation_id))
         self.db.commit()
-
-    def select_baziInfo(self, user_id):
+    # 根据user_id获取本人的八字 或者根据conversation_id获取对话的背景
+    def select_baziInfo(self, user_id=None, conversation_id=None):
         with self.db.cursor() as cursor:
-            sql = "SELECT bazi_info FROM AI_fortune_bazi WHERE user_id=%s"
-            cursor.execute(sql, (user_id,))
+            if conversation_id:
+                sql = "SELECT bazi_info FROM AI_fortune_bazi WHERE conversation_id=%s"
+                cursor.execute(sql, (conversation_id,))
+            else:
+                sql = "SELECT bazi_info FROM AI_fortune_bazi WHERE user_id=%s AND birthday_match IS NULL"
+                cursor.execute(sql, (user_id,))
             result = cursor.fetchone()
             if result:
                 return result[0]
@@ -202,12 +204,11 @@ class TiDBManager:
                 return False
 
 class ChatGPT:
-    def __init__(self, user_id, conversation_id, match=None):
+    def __init__(self, conversation_id, match=None):
         self.conversation_id = conversation_id
         self.messages = []
         self.tidb_manager = TiDBManager()
         # self.user_id = self.tidb_manager.get_user_id(self.conversation_id)
-        self.user_id = user_id
         # get the history messages
         if match:
             self.load_match_history()
@@ -234,7 +235,7 @@ class ChatGPT:
 
     def load_history(self):
         # if the history message exist in , concat it and compute the token lens
-        bazi_info = self.tidb_manager.select_baziInfo(self.user_id)
+        bazi_info = self.tidb_manager.select_baziInfo(self.conversation_id)
         conversation_messages = self.tidb_manager.get_conversation(self.conversation_id)
         # 如果对话中存在未重置的记录，那么优先使用
         # content 就是一个基本的prompt
@@ -263,7 +264,7 @@ class ChatGPT:
 
     def load_match_history(self):
         # if the history message exist in , concat it and compute the token lens
-        bazi_info = self.tidb_manager.select_baziInfo(self.user_id)
+        bazi_info = self.tidb_manager.select_baziInfo(self.conversation_id)
         conversation_messages = self.tidb_manager.get_conversation(self.conversation_id)
         # 如果对话中存在未重置的记录，那么优先使用
         # content 就是一个基本的prompt
@@ -290,7 +291,7 @@ class ChatGPT:
             self.messages = [{"role": "system", "content": content}]
 
     def writeToTiDB(self, human, AI):
-        self.tidb_manager.insert_conversation(self.user_id, self.conversation_id, human, AI)
+        self.tidb_manager.insert_conversation(self.conversation_id, human, AI)
 
     def ask_gpt_stream(self, user_message):
         answer = ""
@@ -303,14 +304,15 @@ class ChatGPT:
             messages=self.messages,
             stream=True
         )
-        yield "<chunk>"
+        # yield "<chunk>"
         for chunk in rsp:
             data = chunk["choices"][0]["delta"].get("content","")
             answer += data
             yield data
-        yield f"</chunk><chunk>{{'user_id':{self.user_id}}}</chunk>"
+        # yield f"</chunk><chunk>{{'user_id':{self.user_id}}}</chunk>"
         # Add GPT's reply to conversation history
         self.messages.append({"role": "assistant", "content": answer})
+        logging.info(f"gpt answer is: {answer}")
         self.writeToTiDB(user_message, answer)
 
 class options:
@@ -335,6 +337,7 @@ def stream_output(message, user_id):
     yield f"{message}<chunk>{json_user_data}</chunk>"
 
 
+
 @app.route('/api/baziAnalysis',methods=['POST','GET'])
 def baziAnalysis_stream():
     year = '2000'
@@ -347,16 +350,18 @@ def baziAnalysis_stream():
     r = False
 
     if request.method =="POST":
+        logging.info(f"baziAnalysis POST_data: {request.get_json()}") 
         year = request.get_json().get("year")
         month = request.get_json().get("month")
         day = request.get_json().get("day")
+        time = request.get_json().get("time")
         try:
             year = int(year)
             month = int(month)
             day = int(day)
         except:
             return jsonify({"error":"无效的数据格式"}, 400)
-        time = request.get_json().get("time")
+        conversation_id = request.get_json().get("conversation_id")
         n = request.get_json().get("n")
         time = int(int(time.split("-")[0])  + int(time.split("-")[1]) / 2 ) # 提取开始小时
         op = options(year=year,month=month,day=day,time=time,g=g,b=b,n=n,r=r)
@@ -364,7 +369,7 @@ def baziAnalysis_stream():
         user_id = str(uuid.uuid4())
         tidb_manager = TiDBManager()
         birthday = datetime(year, month, day, time)
-        tidb_manager.insert_baziInfo(user_id, birthday, bazi_info)
+        tidb_manager.insert_baziInfo(user_id, birthday, bazi_info, conversation_id)
         return Response(stream_output(bazi_info,user_id), mimetype="text/event-stream")
 
     if request.method == "GET":
@@ -398,6 +403,7 @@ def baziMatchRes():
             day = int(day)
         except:
             return jsonify({"error":"无效的数据格式"}, 400)
+        conversation_id = request.get_json().get("conversation_id")
         t_ime = int(int(t_ime.split("-")[0])  + int(t_ime.split("-")[1]) / 2 ) # 提取开始小时
         birthday = tidb_manager.select_birthday(user_id)
         bazi_info = tidb_manager.select_baziInfo(user_id)
@@ -439,9 +445,8 @@ def baziMatchRes():
 
             7. 总分：{total_score}分        
         """
-        user_id = str(uuid.uuid4())
         birthday_match = datetime(year, month, day, t_ime)
-        tidb_manager.insert_baziInfo(user_id, birthday, res, birthday_match=birthday_match)
+        tidb_manager.insert_baziInfo(user_id, birthday, res, conversation_id, birthday_match=birthday_match)
         return Response(stream_output(res, user_id), mimetype="text/event-stream")
 
 
@@ -449,22 +454,20 @@ def baziMatchRes():
 def chat_bazi():
     data = request.get_json()
     conversation_id = data.get('conversation_id')
-    user_id = data.get('user_id')
     user_message = data.get('message')
 
     # Initialize or retrieve existing ChatGPT instance for the user
-    chat = ChatGPT(user_id, conversation_id)
+    chat = ChatGPT(conversation_id)
     return Response(chat.ask_gpt_stream(user_message), mimetype="text/event-stream")
 
 @app.route('/api/chat_bazi_match', methods=['POST'])
 def chat_bazi_match():
     data = request.get_json()
     conversation_id = data.get('conversation_id')
-    user_id = data.get('user_id')
     user_message = data.get('message')
 
     # Initialize or retrieve existing ChatGPT instance for the user
-    chat = ChatGPT(user_id, conversation_id, match=True)
+    chat = ChatGPT(conversation_id, match=True)
     return Response(chat.ask_gpt_stream(user_message), mimetype="text/event-stream")
 
 @app.route('/api/reset_chat', methods=['POST'])
@@ -511,7 +514,32 @@ def asset_select():
         return jsonify({"status": "success", "data":res}, 200)
     else:
         return jsonify({"status": "database select Error"}, 500)
+@app.route('/api/tg_bot/bazi_info',methods=['POST'])
+def tg_bot_bazi_info():
+    '''
+    传入conversation_id, birthday, n。如果conversation_id存在，那么对应的输入生日就是新增八字配对。如果不存在那就是给用户算八字。如果没有生日就是重置对话。
+    '''
+    if request.method =="POST":
+        tidb_manager = TiDBManager()
+        data = request.get_json()
+        birthday,conversation_id,n = data['birthday'], data['conversation_id'], data['n']
+        if birthday:
+            try:
+                year, month, day, time = map(str, birthday.split('-'))
+            except ValueError:
+                return jsonify({"error":"无效的日期格式。请使用 YYYY-M-D-H 格式。"}, 400)
+            
+        else:
+            tidb_manager = TiDBManager()
+            res = tidb_manager.reset_conversation(conversation_id)
+            # Return the ChatGPT's response
+            if res:
+                return jsonify({"status": "success"}, 200)
+            else:
+                return jsonify({"status": f"database reset Error, where conversation_id={conversation_id}"}, 500)
 
+
+            
 @app.route('/test')
 def test():
     return jsonify({"res":"test!"})
