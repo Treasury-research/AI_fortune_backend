@@ -63,6 +63,57 @@ class TiDBManager:
     def __init__(self):
         self.db = pool.connection()
 
+    def insert_tg_bot_conversation_user(self, conversation_id, user_id, bazi_id):
+    # 存储tg_bot 的conversation_id（即tg的chat_id）和user_id(后端生成的个人八字信息标志) 还有标志tg中个人或者配对的八字背景信息id
+        generated_uuid = str(uuid.uuid4())
+        with self.db.cursor() as cursor:
+            sql = """
+                INSERT INTO AI_fortune_tg_bot_conversation_user (id, conversation_id, user_id, bazi_id)
+                VALUES (%s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE bazi_id = VALUES(bazi_id), user_id=VALUES(user_id)
+                """
+            cursor.execute(sql, (generated_uuid,conversation_id, user_id, bazi_id))
+        self.db.commit()
+
+    def select_tg_bot_conversation_user(self, conversation_id, user_id=None):
+        with self.db.cursor() as cursor:
+            if user_id:
+                sql = "SELECT bazi_id FROM AI_fortune_tg_bot_conversation_user WHERE conversation_id=%s AND user_id=%s"
+                cursor.execute(sql, (conversation_id, user_id,))
+            else:
+                sql = "SELECT bazi_id FROM AI_fortune_tg_bot_conversation_user WHERE conversation_id=%s"
+                cursor.execute(sql, (conversation_id,))
+            result = cursor.fetchone()
+            if result:
+                return result[0]
+            else:
+                return False
+
+    def insert_other_human(self, gender, birthday, user_id):
+        # try:
+        generated_uuid = str(uuid.uuid4())
+        with self.db.cursor() as cursor:
+            # 如果是用户自己导入的资产，那要带上user_id进行存储
+            sql = """
+                INSERT INTO AI_fortune_tg_bot_other_human (id, gender, birthday, user_id)
+                VALUES (%s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE birthday = VALUES(birthday), gender = VALUES(gender)
+                """
+            cursor.execute(sql, (generated_uuid, gender, birthday, user_id, ))
+        self.db.commit()
+        return generated_uuid
+        # except:
+        #     return False
+
+    def select_other_human(self, user_id):
+        with self.db.cursor() as cursor:
+            sql = "SELECT gender, birthday, id FROM AI_fortune_tg_bot_other_human WHERE user_id=%s"
+            cursor.execute(sql, (user_id,))
+            result = cursor.fetchall()
+            if result:
+                return result
+            else:
+                return False
 
     def insert_asset(self, name, birthday,user_id=None):
         # try:
@@ -84,13 +135,13 @@ class TiDBManager:
                     """
                 cursor.execute(sql, (generated_uuid,name, birthday,1))
         self.db.commit()
-        return True
+        return generated_uuid
         # except:
         #     return False
 
     def select_asset(self, user_id):
         with self.db.cursor() as cursor:
-            sql = "SELECT name, birthday FROM AI_fortune_assets WHERE user_id=%s OR is_public=1"
+            sql = "SELECT name, birthday, id FROM AI_fortune_assets WHERE user_id=%s OR is_public=1"
             cursor.execute(sql, (user_id,))
             result = cursor.fetchall()
             if result:
@@ -99,11 +150,15 @@ class TiDBManager:
                 return False
 
 
-    def reset_conversation(self, conversation_id):
+    def reset_conversation(self, conversation_id, bazi_id=None):
         try:
             with self.db.cursor() as cursor:
-                sql = "UPDATE AI_fortune_conversation SET is_reset = 1 WHERE conversation_id = %s"
-                cursor.execute(sql, (conversation_id,))
+                if bazi_id:
+                    sql = "UPDATE AI_fortune_conversation SET is_reset = 1 WHERE conversation_id = %s AND bazi_id = %s"
+                    cursor.execute(sql, (conversation_id, bazi_id, ))
+                else:    
+                    sql = "UPDATE AI_fortune_conversation SET is_reset = 1 WHERE conversation_id = %s"
+                    cursor.execute(sql, (conversation_id,))
             self.db.commit()
             return True
         except:
@@ -111,10 +166,15 @@ class TiDBManager:
             return False
 
 
-    def insert_conversation(self, conversation_id, human_message=None, AI_message=None):
+    def insert_conversation(self, conversation_id, human_message=None, AI_message=None, bazi_id=None):
         generated_uuid = str(uuid.uuid4())
         with self.db.cursor() as cursor:
-            if human_message and AI_message:
+            if bazi_id:
+                sql = """
+                    INSERT INTO AI_fortune_conversation (id, conversation_id, human, AI, bazi_id) VALUES (%s, %s, %s, %s, %s)
+                    """
+                cursor.execute(sql, (generated_uuid, conversation_id, human_message, AI_message, bazi_id))
+            elif human_message and AI_message:
                 sql = """
                     INSERT INTO AI_fortune_conversation (id, conversation_id, human, AI) VALUES (%s, %s, %s, %s)
                     """
@@ -163,35 +223,83 @@ class TiDBManager:
 
             # 生辰八字和对应的批文：{res[0]}
             # """
-    def insert_baziInfo(self, user_id, birthday, bazi_info, conversation_id, birthday_match=None):
+    def insert_baziInfo(self, user_id, birthday, bazi_info, conversation_id, birthday_match=None, matcher_type=None, matcher_id=None):
         generated_uuid = str(uuid.uuid4())
         logging.info(f"insert_baziInfo{user_id, birthday, conversation_id}")
         with self.db.cursor() as cursor:
             if birthday_match:
-                sql = """
-                    INSERT INTO AI_fortune_bazi (id, user_id, birthday, birthday_match, bazi_info,conversation_id) VALUES (%s, %s, %s, %s, %s, %s)
-                    """
-                cursor.execute(sql, (generated_uuid, user_id, birthday, birthday_match, bazi_info, conversation_id))
+                if matcher_type: # matcher_type 代表是tg_bot
+                    sql = """
+                        INSERT INTO AI_fortune_bazi (id, user_id, birthday, birthday_match, bazi_info,conversation_id,matcher_type,matcher_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                        ON DUPLICATE KEY UPDATE birthday = VALUES(birthday), birthday_match = VALUES(birthday_match), bazi_info = VALUES(bazi_info)
+                        """
+                    cursor.execute(sql, (generated_uuid, user_id, birthday, birthday_match, bazi_info, conversation_id, matcher_type, matcher_id))
+                else:    
+                    sql = """
+                        INSERT INTO AI_fortune_bazi (id, user_id, birthday, birthday_match, bazi_info,conversation_id) VALUES (%s, %s, %s, %s, %s, %s)
+                        """
+                    cursor.execute(sql, (generated_uuid, user_id, birthday, birthday_match, bazi_info, conversation_id))
             else:
                 sql = """
                     INSERT INTO AI_fortune_bazi (id, user_id, birthday, bazi_info, conversation_id) VALUES (%s, %s, %s, %s, %s)
                     """
                 cursor.execute(sql, (generated_uuid, user_id, birthday, bazi_info, conversation_id))
         self.db.commit()
-    # 根据user_id获取本人的八字 或者根据conversation_id获取对话的背景
-    def select_baziInfo(self, user_id=None, conversation_id=None):
+        return generated_uuid
+
+
+    def select_bazi_id(self, user_id=None, conversation_id=None, matcher_id=None):
         with self.db.cursor() as cursor:
-            if conversation_id:
-                sql = "SELECT bazi_info FROM AI_fortune_bazi WHERE conversation_id=%s"
-                cursor.execute(sql, (conversation_id,))
+            if matcher_id:
+                sql = "SELECT id FROM AI_fortune_bazi WHERE matcher_id=%s"
+                cursor.execute(sql, (matcher_id,))
             else:
-                sql = "SELECT bazi_info FROM AI_fortune_bazi WHERE user_id=%s AND birthday_match IS NULL"
-                cursor.execute(sql, (user_id,))
+                if conversation_id:
+                    sql = "SELECT id FROM AI_fortune_bazi WHERE conversation_id=%s"
+                    cursor.execute(sql, (conversation_id,))
+                else:
+                    sql = "SELECT id FROM AI_fortune_bazi WHERE user_id=%s AND birthday_match IS NULL"
+                    cursor.execute(sql, (user_id,))
             result = cursor.fetchone()
             if result:
                 return result[0]
             else:
                 return False
+
+    # 根据user_id获取本人的八字 或者根据conversation_id获取对话的背景
+    def select_baziInfo(self, user_id=None, conversation_id=None, matcher_id=None):
+        with self.db.cursor() as cursor:
+            if matcher_id:
+                sql = "SELECT bazi_info FROM AI_fortune_bazi WHERE matcher_id=%s"
+                cursor.execute(sql, (matcher_id,))
+            else:
+                if conversation_id:
+                    sql = "SELECT bazi_info FROM AI_fortune_bazi WHERE conversation_id=%s"
+                    cursor.execute(sql, (conversation_id,))
+                else:
+                    sql = "SELECT bazi_info FROM AI_fortune_bazi WHERE user_id=%s AND birthday_match IS NULL"
+                    cursor.execute(sql, (user_id,))
+            result = cursor.fetchone()
+            if result:
+                return result[0]
+            else:
+                return False
+
+    # 根据user_id获取本人的八字 或者根据conversation_id获取对话的背景, matcher_type:0 本人 1 他人 2 资产
+    def select_match_baziInfo_tg_bot(self, bazi_id):
+
+        with self.db.cursor() as cursor:
+            sql = "SELECT matcher_type, matcher_id FROM AI_fortune_bazi WHERE id=%s"
+            cursor.execute(sql, (bazi_id,))
+            result = cursor.fetchone()
+            sql = "SELECT bazi_info FROM AI_fortune_bazi WHERE id=%s"
+            cursor.execute(sql, (bazi_id,))
+            bazi_info = cursor.fetchone()
+            if result:
+                return result,bazi_info
+            else:
+                return False,bazi_info
+
 
     def select_birthday(self, user_id):
         with self.db.cursor() as cursor:
@@ -315,6 +423,111 @@ class ChatGPT:
         logging.info(f"gpt answer is: {answer}")
         self.writeToTiDB(user_message, answer)
 
+
+class tg_bot_ChatGPT:
+    def __init__(self, conversation_id):
+        self.conversation_id = conversation_id
+        self.messages = []
+        self.tidb_manager = TiDBManager()
+        self.mathcer_type, self.matcher_id, self.bazi_id = None, None, None
+        self.get_basic_param()
+        self.load_history()
+
+    def get_basic_param(self):
+        self.bazi_id = self.tidb_manager.select_tg_bot_conversation_user(self.conversation_id)
+        res, self.bazi_info = self.tidb_manager.select_match_baziInfo_tg_bot(self.bazi_id)
+        if res:
+            # 是配对过的
+            logging.info(f"select_match_baziInfo_tg_bot res is :{res}")
+            self.mathcer_type, self.matcher_id = res[0], res[1]
+
+    def _num_tokens_from_string(self, string: str) -> int:
+        """Returns the number of tokens in a text string."""
+        encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
+        tokens=encoding.encode(string)
+        return len(tokens)
+    def _trim_conversations(self, bazi_info, conversation_messages, max_tokens=16000):
+        # add the bazi_info as background in index 0
+        conversation_messages.insert(0,bazi_info)
+        total_tokens = sum(self._num_tokens_from_string(str(message)) for message in conversation_messages)
+        # if total tokens exceeds the max_tokens, delete the oldest message
+        # 如果总token数超过限制，则删除旧消息 
+        while total_tokens > max_tokens:
+            # delete the first list item 删除列表的第一个元素
+            removed_message = conversation_messages.pop(0)  
+            # update total tokens 更新总token数
+            total_tokens -= self._num_tokens_from_string(removed_message) 
+        return conversation_messages
+
+    def load_history(self):
+        # if the history message exist in , concat it and compute the token lens
+        conversation_messages = self.tidb_manager.get_conversation(self.conversation_id)
+        # 如果对话中存在未重置的记录，那么优先使用
+        # content 就是一个基本的prompt
+        content = f"""我想你作为一个命理占卜分析师。你的工作是根据我给定的中国传统命理占卜的生辰八字和对应的八字批文信息作为整个对话的背景知识进行问题的回答。
+        注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
+        你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
+
+
+        生辰八字和对应的批文：{self.bazi_info}
+        """
+        content_match_human = f"""我想你作为一个命理占卜分析师。我将给你如下信息，本人的生辰八字和需要配对人的生辰八字，还有八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
+        注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
+        你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
+
+
+        信息：{self.bazi_info}
+        """
+
+        content_match_asset = f"""我想你作为一个命理占卜分析师。我将给你如下信息，本人的生辰八字和需要配对资产的生辰八字，还有八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
+        注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
+        你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
+
+
+        信息：{self.bazi_info}
+        """
+        if conversation_messages:
+            conversations = self._trim_conversations(content, list(conversation_messages))
+            # if the first item is not a tuple, that is bazi_info
+            if type(conversations[0]) != tuple:
+                self.messages = [{"role": "system", "content": content}]
+                conversations = conversations[1:]
+            for conversation in conversations:
+                # add user message
+                self.messages.append({"role": "user", "content": conversation[0]})
+                # add AI message
+                self.messages.append({"role": "assistant", "content": conversation[1]})
+        # 如果对话中不存在未重置的记录，那么意味着直接使用bazi_info作为背景知识
+        else:
+            self.messages = [{"role": "system", "content": content}]
+
+
+    def writeToTiDB(self, human, AI):
+        self.tidb_manager.insert_conversation(self.conversation_id, human, AI, self.bazi_id)
+
+    def ask_gpt_stream(self, user_message):
+        answer = ""
+        # Add user's new message to conversation history
+        self.messages.append({"role": "user", "content": user_message})
+        # print(self.messages)
+        # Send the entire conversation history to GPT
+        rsp = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo-1106",
+            messages=self.messages,
+            stream=True
+        )
+        # yield "<chunk>"
+        for chunk in rsp:
+            data = chunk["choices"][0]["delta"].get("content","")
+            answer += data
+            yield data
+        # yield f"</chunk><chunk>{{'user_id':{self.user_id}}}</chunk>"
+        # Add GPT's reply to conversation history
+        self.messages.append({"role": "assistant", "content": answer})
+        logging.info(f"gpt answer is: {answer}")
+        self.writeToTiDB(user_message, answer)
+
+        
 class options:
     def __init__(self,year,month,day,time,b=False,g=True,r=False,n=False):
         self.year = year
@@ -508,35 +721,182 @@ def asset_select():
     data = request.get_json()
     user_id = data.get('user_id')
     tidb_manager = TiDBManager()
-    res = tidb_manager.select_asset(user_id)
+    _res = tidb_manager.select_asset(user_id)
+    res = [(name, birthday) for name, birthday, _ in _res]
+    # res = tidb_manager.select_asset(user_id)
     # Return the ChatGPT's response
     if res:
         return jsonify({"status": "success", "data":res}, 200)
     else:
         return jsonify({"status": "database select Error"}, 500)
-@app.route('/api/tg_bot/bazi_info',methods=['POST'])
+
+
+@app.route('/api/tg_bot/first_visit',methods=['POST'])
+def tg_bot_first_visit():
+    if request.method =="POST":
+        data = request.get_json()
+        conversation_id = data['conversation_id']
+        tidb_manager = TiDBManager()
+        res = tidb_manager.select_tg_bot_conversation_user(conversation_id)
+        if res:
+            return jsonify({"status": "success, not first time."}, 200)
+        else:
+            return jsonify({"status": "error, it is first time."}, 200)
+
+@app.route('/api/tg_bot/get_matcher',methods=['POST'])
+def tg_bot_get_matcher():
+    if request.method =="POST":
+        data = request.get_json()
+        user_id = data['user_id']
+        matcher_type = data['matcher_type']
+        tidb_manager = TiDBManager()
+        if matcher_type==1:
+            res = tidb_manager.select_other_human(user_id)
+        elif matcher_type==2:
+            _res = tidb_manager.select_asset(user_id)
+            res = [(name, id) for name, _, id in _res]
+        else:
+            return jsonify({"status": "matcher_type Error"}, 500)
+        if res:
+            return jsonify({"status": "success","data":res}, 200)
+        else:
+            return jsonify({"status": "database select Error"}, 500)
+
+
+@app.route('/api/tg_bot/chat', methods=['POST'])
+def tg_bot_chat():
+    data = request.get_json()
+    conversation_id = data.get('conversation_id')
+    user_message = data.get('message')
+    chat = tg_bot_ChatGPT(conversation_id)
+    # Initialize or retrieve existing ChatGPT instance for the user
+    return Response(chat.ask_gpt_stream(user_message), mimetype="text/event-stream")
+
+
+@app.route('/api/tg_bot/bazi_insert', methods=['POST'])
+def tg_bot_bazi_insert():
+    data = request.get_json()
+    birthday = data.get('birthday') # 格式：2000-5-5-10
+    conversation_id = data.get('conversation_id')
+    matcher_type = data.get('matcher_type')
+    name_or_gender = data.get('name_or_gender') # gender:true代表女 false代表男 name直接输入名字
+    user_id = data.get('user_id')
+
+    tidb_manager = TiDBManager()
+    # 如果matcher_type 是0代表本人，是1，代表其他人， 2代表资产(int)
+    if matcher_type == 0:
+        # 插入自己八字
+        if user_id:
+            bazi_info = tidb_manager.select_baziInfo(user_id=user_id)
+        else:
+            n = name_or_gender
+            year, month, day, time = map(int, birthday.split('-'))
+            op = options(year=year,month=month,day=day,time=time,n=n)
+            bazi_info = baziAnalysis(op)
+            user_id = str(uuid.uuid4())
+            birthday = datetime(year, month, day, time)
+            bazi_id = tidb_manager.insert_baziInfo(user_id, birthday, bazi_info, conversation_id)
+            tidb_manager.insert_tg_bot_conversation_user(conversation_id, user_id, bazi_id)
+        return Response(stream_output(bazi_info,user_id), mimetype="text/event-stream")
+    elif matcher_type == 1:
+        birthday_user = tidb_manager.select_birthday(user_id)
+        bazi_info = tidb_manager.select_baziInfo(user_id)
+        n = name_or_gender
+        year_match, month_match, day_match, time_match = map(int, birthday.split('-'))
+        op = options(year=year_match,month=month_match,day=day_match,time=time_match)
+        bazi_info_match = baziAnalysis(op)
+        total_score, bb, c, yh, rh, rrh, ez = baziMatch(birthday_user.year,birthday_user.month,birthday_user.day,birthday_user.hour, year_match, month_match, day_match, time_match)
+        res = f"本人的八字及其批文：{bazi_info} \n 匹配者的八字及其批文：{bazi_info_match} \n 两人八字匹配得分："
+        res += f"""
+            1. 命宫相合：{bb}分
+                此项为30分 说明：根据两个八字的命宫是否相合来评分。命宫相合通常意味着两者在性格、命运走向等方面有较好的匹配度。
+
+            2. 年支同气：{c}分
+                此项为20分 说明：考虑两个八字的年支（生肖）是否归属于相同的五行方位。例如，寅卯辰属东方木气，相同方位的年支表示在天性、运势方面可能相辅相成。
+
+            3. 月令相合：{yh}分
+                此项为5分 说明：如果两个八字的月令（出生月的地支）相合或相生，这表示两者在一年中的能量周期上可能存在共鸣。
+
+            4. 日干相合：{rh}分
+                此项为25分 说明：日干代表个体的本质和核心特质。如果两个八字的日干相合或相生，如一阴一阳的组合，这预示着两者在本质上的互补或和谐。
+
+            5. 天干五合：{rrh}分
+                此项为5分 说明：考察两个八字的天干是否形成五行上的相合或相生关系，这关系到两者在五行动态平衡中的互动。
+
+            6. 综合匹配度：{ez}分
+                此项为15分 说明：综合考虑两个八字在各方面的相合程度，包括性格、命运走向、生活习惯等方面的整体协调性。
+
+            7. 总分：{total_score}分        
+        """
+        birthday_match = datetime(year_match, month_match, day_match, time_match)
+        matcher_id = tidb_manager.insert_other_human(n, birthday_match, user_id)
+        bazi_id = tidb_manager.insert_baziInfo(user_id, birthday_user, res, conversation_id, birthday_match=birthday_match, matcher_type=matcher_type, matcher_id=matcher_id)
+        tidb_manager.insert_tg_bot_conversation_user(conversation_id, user_id, bazi_id)
+        return Response(stream_output(res, user_id), mimetype="text/event-stream")
+    elif matcher_type==2: # 配对资产
+        birthday_user = tidb_manager.select_birthday(user_id)
+        bazi_info = tidb_manager.select_baziInfo(user_id)
+        name = name_or_gender
+        year_match, month_match, day_match, time_match = map(int, birthday.split('-'))
+        op = options(year=year_match,month=month_match,day=day_match,time=time_match)
+        bazi_info_match = baziAnalysis(op)
+        total_score, bb, c, yh, rh, rrh, ez = baziMatch(birthday_user.year,birthday_user.month,birthday_user.day,birthday_user.hour, year_match, month_match, day_match, time_match)
+        res = f"本人的八字及其批文：{bazi_info} \n 匹配者的八字及其批文：{bazi_info_match} \n 两人八字匹配得分："
+        res += f"""
+                1. 核心价值匹配：{bb}分
+                    此项为30分。说明：评估个人与资产的核心价值是否相合。核心价值匹配通常意味着双方在投资理念、价值观和长期发展目标等方面有较好的一致性。
+                
+                2. 投资周期共振：{c}分
+                    此项为20分。说明：分析个人与资产的投资周期是否存在共振，如是否符合相同的投资时段或市场周期。共振的投资周期表示在资产增值和收益实现上可能相辅相成。
+                
+                3. 风险偏好匹配：{yh}分
+                    此项为5分。说明：考察个人与资产在风险承受能力和风险偏好上是否有相合或相补性，这表示双方在投资决策和市场适应上可能存在共鸣。
+                
+                4. 资产配置互补：{rh}分
+                    此项为25分。说明：资产配置代表个人投资组合的多元化和平衡。如果个人与资产的配置能够互补，如稳定收益与高风险高回报的结合，这预示着双方在资产管理和收益优化上的互补或和谐。
+                
+                5. 流动性需求一致：{rrh}分
+                    此项为5分。说明：探讨个人与资产在资金流动性需求上是否形成一致性，这关系到双方在资金周转和资产流动性管理中的协调配合。
+                
+                6. 综合适配度：{ez}分
+                    此项为15分。说明：综合考虑个人与资产在投资目标、风险偏好、资金管理等方面的相合程度，反映双方在整体投资策略和资产管理上的适配性。
+                
+                7. 总分：{total_score}分
+                    综合评分，反映个人与资产在各项指标上的匹配度，为投资决策提供参考依据。
+        """
+        birthday_match = datetime(year_match, month_match, day_match, time_match)
+        matcher_id = tidb_manager.insert_asset(name, birthday_match,user_id=user_id)
+        bazi_id = tidb_manager.insert_baziInfo(user_id, birthday_user, res, conversation_id, birthday_match=birthday_match, matcher_type=matcher_type, matcher_id=matcher_id)
+        tidb_manager.insert_tg_bot_conversation_user(conversation_id, user_id, bazi_id)
+        return Response(stream_output(res, user_id), mimetype="text/event-stream")
+    else:
+        return jsonify({"status": f"POST data param type error! matcher type is number! where conversation_id={conversation_id}"}, 500)
+
+@app.route('/api/tg_bot/reset_chat',methods=['POST'])
 def tg_bot_bazi_info():
     '''
     传入conversation_id, birthday, n。如果conversation_id存在，那么对应的输入生日就是新增八字配对。如果不存在那就是给用户算八字。如果没有生日就是重置对话。
     '''
     if request.method =="POST":
-        tidb_manager = TiDBManager()
         data = request.get_json()
-        birthday,conversation_id,n = data['birthday'], data['conversation_id'], data['n']
-        if birthday:
-            try:
-                year, month, day, time = map(str, birthday.split('-'))
-            except ValueError:
-                return jsonify({"error":"无效的日期格式。请使用 YYYY-M-D-H 格式。"}, 400)
-            
-        else:
-            tidb_manager = TiDBManager()
-            res = tidb_manager.reset_conversation(conversation_id)
-            # Return the ChatGPT's response
-            if res:
-                return jsonify({"status": "success"}, 200)
-            else:
-                return jsonify({"status": f"database reset Error, where conversation_id={conversation_id}"}, 500)
+        conversation_id = data.get('conversation_id')
+        user_id = data.get('user_id')
+        matcher_id = data.get('matcher_id')
+        matcher_type = data.get('matcher_type')
+
+        tidb_manager = TiDBManager()
+        # 重置当前对话，并获取八字背景信息；重置
+        if matcher_type==0: # 获取自己的八字， match
+            bazi_info = tidb_manager.select_baziInfo(user_id=user_id)
+            bazi_id = tidb_manager.select_bazi_id(user_id=user_id)
+        # 重置当前对话 其他人
+        else :
+            bazi_info = tidb_manager.select_baziInfo(matcher_id=matcher_id)
+            bazi_id = tidb_manager.select_bazi_id(matcher_id=matcher_id)
+        tidb_manager.reset_conversation(conversation_id, bazi_id)
+        tidb_manager.insert_tg_bot_conversation_user(conversation_id, user_id, bazi_id)
+        return Response(stream_output(bazi_info, user_id), mimetype="text/event-stream")
+
 
 
             
