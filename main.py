@@ -944,7 +944,3 @@ if __name__ == "__main__":
     #     messages=messages
     # )
     # answer = rsp.get("choices")[0]["message"]["content"]
-
-    # # Add GPT's reply to conversation history
-    # messages.append({"role": "assistant", "content": answer})
-    # tidb_manager.insert_conversation(conversation_id, messages)
