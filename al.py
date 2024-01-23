@@ -368,7 +368,7 @@ def baziMatch(year,month,day,t_ime,year_a,month_a,day_a,t_ime_a,name=None):
         yearList.append(str(daYun.getStartYear()))
         ageList.append(str(daYun.getStartAge()) + "岁")
 
-    if name is not None:
+    if name is None:
         print(f"本人信息：")
         print(f"出生地时间（公历）：{year}年 {month}月 {day}日 {t_ime}时")
         print("胎元：")
