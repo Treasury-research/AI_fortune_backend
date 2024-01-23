@@ -18,6 +18,7 @@ from common import *
 from yue import months
 import io
 import os
+
 import sys
 def capture_print(func):
     def wrapper(*args, **kwargs):
@@ -250,8 +251,8 @@ def baziAnalysis(options):
         sex = '女' if options.n else '男'
         print("\n{}命".format(sex))
         print("======================================")  
-        print("公历:", end='')
-        print("\t{}年{}月{}日".format(day.getSolarYear(), day.getSolarMonth(), day.getSolarDay()))
+        # print("公历:", end='')
+        # print("\t{}年{}月{}日".format(day.getSolarYear(), day.getSolarMonth(), day.getSolarDay()))
 
         Lleap = "闰" if day.isLunarLeap() else ""
         lunar = Lunar.fromYmdHms(day.getLunarYear(), day.getLunarMonth(), day.getLunarDay(),int(options.time), 0, 0)
@@ -270,8 +271,7 @@ def baziAnalysis(options):
         print(''.join(item), end=' ')
     print()
     print("甲己-中正土  乙庚-仁义金  丙辛-威制水  丁壬-淫慝木  戊癸-无情火", "  三会:", str(zhi_huis).replace("'",""))
-    # print("="*120)    
-    print("-"*120)    
+    print("="*120)    
 
     #print(zhi_3hes, "生：寅申巳亥 败：子午卯酉　库：辰戌丑未")
     #print("地支六合:", zhi_6hes)
@@ -1741,12 +1741,9 @@ def baziAnalysis(options):
         ],
     )
     string_res = completion["choices"][0]["message"]["content"].strip()
-    # print(string_res)
-    # gpt_res = json.loads(string_res)
 
     print("\n\n命")    
-    # print("="*120)  
-    print("-"*120)  
+    print("="*120)  
     try:
         gpt_res = json.loads(string_res)
         for i in gpt_res["mingyun"].split("。"):
@@ -1761,9 +1758,7 @@ def baziAnalysis(options):
         print(summarys[sum_index])
 
     print("\n\n大运")    
-    # print("="*120)  
-    print("-"*120)  
-
+    print("="*120)  
     if options.b:
         print(dayuns) 
     else:
@@ -1894,21 +1889,21 @@ def baziAnalysis(options):
                     out = out + "  四败：子午卯酉"  
                 if set('辰戌丑未').issubset(all_zhis) and len(set('辰戌丑未')&set(zhis)) == 2 :
                     out = out + "  四库：辰戌丑未"             
-                print(out)
-                solar = Solar(int(options.year), int(options.month), int(options.day), int(options.time), 0, 0)
-                lunar = solar.getLunar()
-                baZi = lunar.getEightChar()
-                daYunArr = yun.getDaYun()
-                for i in range(0, len(daYunArr)):
-                    liuNianArr = daYunArr[i].getLiuNian()
-                    for i in range(0, len(liuNianArr)):
-                        liuNian = liuNianArr[i]
-                        if liuNian.getYear()==_year:
-                            liuYueArr = liuNianArr[i].getLiuYue()
-                            for i in range(0, len(liuYueArr)):
-                                liuYue = liuYueArr[i]
-                                print("    "+str(liuYue.getMonthInChinese()) + '月 :' + liuYue.getGanZhi(), end='   ')
-                            print()  # 在最后打印一个换行符，以便后续的输出不会紧接着这行
+                # print(out)
+                # solar = Solar(int(options.year), int(options.month), int(options.day), int(options.time), 0, 0)
+                # lunar = solar.getLunar()
+                # baZi = lunar.getEightChar()
+                # daYunArr = yun.getDaYun()
+                # for i in range(0, len(daYunArr)):
+                #     liuNianArr = daYunArr[i].getLiuNian()
+                #     for i in range(0, len(liuNianArr)):
+                #         liuNian = liuNianArr[i]
+                #         if liuNian.getYear()==_year:
+                #             liuYueArr = liuNianArr[i].getLiuYue()
+                #             for i in range(0, len(liuYueArr)):
+                #                 liuYue = liuYueArr[i]
+                #                 print("    "+str(liuYue.getMonthInChinese()) + '月 :' + liuYue.getGanZhi(), end='   ')
+                #             print()  # 在最后打印一个换行符，以便后续的输出不会紧接着这行
                                 # liuYue = liuYueArr[i]
                                 # print(str(liuYue.getMonthInChinese()) + '月 ' + liuYue.getGanZhi())
 
@@ -1935,8 +1930,7 @@ def baziAnalysis(options):
     if result:
         print(result)
 
-    # print("="*120)   
-    print("-"*120)   
+    print("="*120)   
 
     # print("流月分析")
     # print("="*120)   
@@ -2405,8 +2399,8 @@ def baziAnalysis(options):
             break
 
     # print("="*120)  
-    print("你属:", me, "特点：--", gan_desc[me],"\n")
-    print("年份:", zhis[0], "特点：--", zhi_desc[zhis[0]],"\n")
+    # print("你属:", me, "特点：--", gan_desc[me],"\n")
+    # print("年份:", zhis[0], "特点：--", zhi_desc[zhis[0]],"\n")
 
 
 
@@ -2455,7 +2449,7 @@ def baziAnalysis(options):
         不杂者，出将入相之格也，带华盖、正印而不夹库，两府之格也；只带库墓而带正印，员郎
         以上，既不带墓又不带正印，止有华盖，常调之禄也；带华印而正建驿马，名曰节印，主旌节
         之贵；若岁干库同库为两重福，主大贵。''')
-        print(tmp_list)
+        # print(tmp_list)
 
     # 华盖分析
     flag = False
@@ -2535,17 +2529,44 @@ def baziAnalysis(options):
 
         
         
-    print("======================================")  
-    if '杀' in shens:
-        if yinyang(me) == '+':
-            print("阳杀:话多,热情外向,异性缘好")
-        else:
-            print("阴杀:话少,性格柔和")
-    if '印' in shens and '才' in shens and '官' in shens:
-        print("印,偏财,官:三奇 怕正财")
-    if '才' in shens and '杀' in shens:
-        print("男:因女致祸、因色致祸; 女:赔货")
+    # print("======================================")  
+    # if '杀' in shens:
+    #     if yinyang(me) == '+':
+    #         print("阳杀:话多,热情外向,异性缘好")
+    #     else:
+    #         print("阴杀:话少,性格柔和")
+    # if '印' in shens and '才' in shens and '官' in shens:
+    #     print("印,偏财,官:三奇 怕正财")
+    # if '才' in shens and '杀' in shens:
+    #     print("男:因女致祸、因色致祸; 女:赔货")
         
-    if '才' in shens and '枭' in shens:
-        print("偏印因偏财而不懒！")    
+    # if '才' in shens and '枭' in shens:
+    #     print("偏印因偏财而不懒！")    
         
+
+# if __name__ == "__main__":
+#     proxy={
+#             'http':'127.0.0.1:10809',
+#             'https':'127.0.0.1:10809'
+#         }
+#     class options:
+#         def __init__(self,year,month,day,time,b=False,g=True,r=False,n=False):
+#             self.year = year
+#             self.month = month
+#             self.day = day
+#             self.time = time
+#             self.b = b
+#             self.g = g
+#             self.r = r
+#             self.n = n
+#     year = '2000'
+#     month = '5'
+#     day = '5'
+#     time = '8'
+#     g = True
+#     b = False
+#     n = False
+#     r = False
+#     op = options(year=year,month=month,day=day,time=time,g=g,b=b,n=n,r=r)
+#     bazi_info = baziAnalysis(op)
+#     print(bazi_info)
