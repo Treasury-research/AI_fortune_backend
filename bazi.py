@@ -270,7 +270,8 @@ def baziAnalysis(options):
         print(''.join(item), end=' ')
     print()
     print("甲己-中正土  乙庚-仁义金  丙辛-威制水  丁壬-淫慝木  戊癸-无情火", "  三会:", str(zhi_huis).replace("'",""))
-    print("="*120)    
+    # print("="*120)    
+    print("-"*120)    
 
     #print(zhi_3hes, "生：寅申巳亥 败：子午卯酉　库：辰戌丑未")
     #print("地支六合:", zhi_6hes)
@@ -1744,7 +1745,8 @@ def baziAnalysis(options):
     # gpt_res = json.loads(string_res)
 
     print("\n\n命")    
-    print("="*120)  
+    # print("="*120)  
+    print("-"*120)  
     try:
         gpt_res = json.loads(string_res)
         for i in gpt_res["mingyun"].split("。"):
@@ -1759,7 +1761,9 @@ def baziAnalysis(options):
         print(summarys[sum_index])
 
     print("\n\n大运")    
-    print("="*120)  
+    # print("="*120)  
+    print("-"*120)  
+
     if options.b:
         print(dayuns) 
     else:
@@ -1931,7 +1935,8 @@ def baziAnalysis(options):
     if result:
         print(result)
 
-    print("="*120)   
+    # print("="*120)   
+    print("-"*120)   
 
     # print("流月分析")
     # print("="*120)   

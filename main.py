@@ -242,12 +242,19 @@ class TiDBManager:
             else:
                 sql = """
                     INSERT INTO AI_fortune_bazi (id, user_id, birthday, bazi_info, conversation_id) VALUES (%s, %s, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE birthday = VALUES(birthday), bazi_info = VALUES(bazi_info)
                     """
                 cursor.execute(sql, (generated_uuid, user_id, birthday, bazi_info, conversation_id))
         self.db.commit()
         return generated_uuid
 
-
+    def update_bazi_info(self, birthday, bazi_info, bazi_id):
+        with self.db.cursor() as cursor:
+            sql = """
+                UPDATE AI_fortune_bazi SET birthday = %s, bazi_info = %s WHERE id = %s 
+                """
+            cursor.execute(sql, (birthday, bazi_info, bazi_id))
+        self.db.commit()
     def select_bazi_id(self, user_id=None, conversation_id=None, matcher_id=None):
         with self.db.cursor() as cursor:
             if matcher_id:
@@ -343,8 +350,9 @@ class ChatGPT:
 
     def load_history(self):
         # if the history message exist in , concat it and compute the token lens
-        bazi_info = self.tidb_manager.select_baziInfo(self.conversation_id)
-        conversation_messages = self.tidb_manager.get_conversation(self.conversation_id)
+        bazi_info = self.tidb_manager.select_baziInfo(conversation_id=self.conversation_id)
+        # logging.info(f"bazi_info is: {bazi_info}")
+        conversation_messages = self.tidb_manager.get_conversation(conversation_id=self.conversation_id)
         # 如果对话中存在未重置的记录，那么优先使用
         # content 就是一个基本的prompt
         content = f"""我想你作为一个命理占卜分析师。你的工作是根据我给定的中国传统命理占卜的生辰八字和对应的八字批文信息作为整个对话的背景知识进行问题的回答。
@@ -357,6 +365,7 @@ class ChatGPT:
         if conversation_messages:
             conversations = self._trim_conversations(content, list(conversation_messages))
             # if the first item is not a tuple, that is bazi_info
+            logging.info(f"conversation is: {conversations}")
             if type(conversations[0]) != tuple:
                 self.messages = [{"role": "system", "content": content}]
                 conversations = conversations[1:]
@@ -372,8 +381,8 @@ class ChatGPT:
 
     def load_match_history(self):
         # if the history message exist in , concat it and compute the token lens
-        bazi_info = self.tidb_manager.select_baziInfo(self.conversation_id)
-        conversation_messages = self.tidb_manager.get_conversation(self.conversation_id)
+        bazi_info = self.tidb_manager.select_baziInfo(conversation_id=self.conversation_id)
+        conversation_messages = self.tidb_manager.get_conversation(conversation_id=self.conversation_id)
         # 如果对话中存在未重置的记录，那么优先使用
         # content 就是一个基本的prompt
         content = f"""我想你作为一个命理占卜分析师。我将给你如下信息，本人的生辰八字和需要配对者的生辰八字，还有八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
@@ -386,6 +395,7 @@ class ChatGPT:
         if conversation_messages:
             conversations = self._trim_conversations(content, list(conversation_messages))
             # if the first item is not a tuple, that is bazi_info
+            logging.info(f"conversation is: {conversations}")
             if type(conversations[0]) != tuple:
                 self.messages = [{"role": "system", "content": content}]
                 conversations = conversations[1:]
@@ -739,9 +749,9 @@ def tg_bot_first_visit():
         tidb_manager = TiDBManager()
         res = tidb_manager.select_tg_bot_conversation_user(conversation_id)
         if res:
-            return jsonify({"status": "success, not first time."}, 200)
+            return jsonify({"status": "success, not first time.", "data": 0,"status_code":200})
         else:
-            return jsonify({"status": "error, it is first time."}, 200)
+            return jsonify({"status": "error, it is first time.", "data": 1,"status_code":200})
 
 @app.route('/api/tg_bot/get_matcher',methods=['POST'])
 def tg_bot_get_matcher():
@@ -786,17 +796,18 @@ def tg_bot_bazi_insert():
     # 如果matcher_type 是0代表本人，是1，代表其他人， 2代表资产(int)
     if matcher_type == 0:
         # 插入自己八字
+        n = name_or_gender
+        year, month, day, time = map(int, birthday.split('-'))
+        op = options(year=year,month=month,day=day,time=time,n=n)
+        bazi_info = baziAnalysis(op)
+        birthday = datetime(year, month, day, time)
         if user_id:
-            bazi_info = tidb_manager.select_baziInfo(user_id=user_id)
+            bazi_id = tidb_manager.select_bazi_id(user_id=user_id)
+            tidb_manager.update_bazi_info(birthday, bazi_info, bazi_id)
         else:
-            n = name_or_gender
-            year, month, day, time = map(int, birthday.split('-'))
-            op = options(year=year,month=month,day=day,time=time,n=n)
-            bazi_info = baziAnalysis(op)
             user_id = str(uuid.uuid4())
-            birthday = datetime(year, month, day, time)
             bazi_id = tidb_manager.insert_baziInfo(user_id, birthday, bazi_info, conversation_id)
-            tidb_manager.insert_tg_bot_conversation_user(conversation_id, user_id, bazi_id)
+        tidb_manager.insert_tg_bot_conversation_user(conversation_id, user_id, bazi_id)
         return Response(stream_output(bazi_info,user_id), mimetype="text/event-stream")
     elif matcher_type == 1:
         birthday_user = tidb_manager.select_birthday(user_id)
@@ -841,7 +852,7 @@ def tg_bot_bazi_insert():
         op = options(year=year_match,month=month_match,day=day_match,time=time_match)
         bazi_info_match = baziAnalysis(op)
         total_score, bb, c, yh, rh, rrh, ez = baziMatch(birthday_user.year,birthday_user.month,birthday_user.day,birthday_user.hour, year_match, month_match, day_match, time_match)
-        res = f"本人的八字及其批文：{bazi_info} \n 匹配者的八字及其批文：{bazi_info_match} \n 两人八字匹配得分："
+        res = f"本人的八字及其批文：{bazi_info} \n 资产的八字及其批文：{bazi_info_match} \n 两人八字匹配得分："
         res += f"""
                 1. 核心价值匹配：{bb}分
                     此项为30分。说明：评估个人与资产的核心价值是否相合。核心价值匹配通常意味着双方在投资理念、价值观和长期发展目标等方面有较好的一致性。
@@ -944,3 +955,7 @@ if __name__ == "__main__":
     #     messages=messages
     # )
     # answer = rsp.get("choices")[0]["message"]["content"]
+
+    # # Add GPT's reply to conversation history
+    # messages.append({"role": "assistant", "content": answer})
+    # tidb_manager.insert_conversation(conversation_id, messages)
