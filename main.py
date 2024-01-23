@@ -330,6 +330,7 @@ class ChatGPT:
         self.conversation_id = conversation_id
         self.messages = []
         self.tidb_manager = TiDBManager()
+        self.match=match
         # self.user_id = self.tidb_manager.get_user_id(self.conversation_id)
         # get the history messages
         if match:
@@ -355,7 +356,19 @@ class ChatGPT:
             # update total tokens 更新总token数
             total_tokens -= self._num_tokens_from_string(removed_message) 
         return conversation_messages
-
+    def _is_own(self,message):
+        messages = []
+        messages.append({"role": "user", "content": f"判断一下问题询问的是本人\他人\群体.本人返回0,他人或者群体返回1. 问题:{message}"})
+        rsp = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo-1106",
+            messages=messages,
+            max_tokens=1
+        )
+        res = rsp.choices[0]["message"]["content"]
+        if '0' in res:
+            return True
+        else:
+            return False
     def load_history(self):
         # if the history message exist in , concat it and compute the token lens
         bazi_info = self.tidb_manager.select_baziInfo(conversation_id=self.conversation_id)
@@ -396,7 +409,6 @@ class ChatGPT:
         # content 就是一个基本的prompt
         content = f"""我想你作为一个命理占卜分析师。我将给你如下信息，配对者的生辰八字，还有八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
         注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
-        如果问题是"我的八字",请你回答"请到本人八字聊天中进行个人信息的详细询问"
         你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
         
 
@@ -427,6 +439,14 @@ class ChatGPT:
         self.messages.append({"role": "user", "content": user_message})
         # print(self.messages)
         # Send the entire conversation history to GPT
+        if self.match:
+            is_own = self._is_own(user_message)
+            if is_own:
+                res = "请到本人八字聊天中进行详细咨询。"
+                yield res
+                self.messages.append({"role": "assistant", "content": res})
+                self.writeToTiDB(user_message, res)
+                return 
         rsp = openai.ChatCompletion.create(
             model="gpt-3.5-turbo-1106",
             messages=self.messages,
@@ -478,7 +498,19 @@ class tg_bot_ChatGPT:
             # update total tokens 更新总token数
             total_tokens -= self._num_tokens_from_string(removed_message) 
         return conversation_messages
-
+    def _is_own(self,message):
+        messages = []
+        messages.append({"role": "user", "content": f"判断一下问题询问的是本人\他人\群体.本人返回0,他人或者群体返回1. 问题:{message}"})
+        rsp = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo-1106",
+            messages=messages,
+            max_tokens=1
+        )
+        res = rsp.choices[0]["message"]["content"]
+        if '0' in res:
+            return True
+        else:
+            return False
     def load_history(self):
         # if the history message exist in , concat it and compute the token lens
         conversation_messages = self.tidb_manager.get_conversation(conversation_id=self.conversation_id)
@@ -493,7 +525,6 @@ class tg_bot_ChatGPT:
         """
         content = f"""我想你作为一个命理占卜分析师。我将给你如下信息，配对者的生辰八字，还有八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
         注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
-        如果问题是"我的八字",请你回答"请到本人八字聊天中进行个人信息的详细询问"
         你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
 
 
@@ -502,7 +533,6 @@ class tg_bot_ChatGPT:
 
         content = f"""我想你作为一个命理占卜分析师。我将给你如下信息，配对者的生辰八字，还有八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
         注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
-        如果问题是"我的八字",请你回答"请到本人八字聊天中进行个人信息的详细询问"
         你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
 
 
@@ -533,6 +563,15 @@ class tg_bot_ChatGPT:
         self.messages.append({"role": "user", "content": user_message})
         # print(self.messages)
         # Send the entire conversation history to GPT
+
+        if self.matcher_type != 0:
+            is_own = self._is_own(user_message)
+            if is_own:
+                res = "请到本人八字聊天中进行详细咨询。"
+                yield res
+                self.messages.append({"role": "assistant", "content": res})
+                self.writeToTiDB(user_message, res)
+                return 
         rsp = openai.ChatCompletion.create(
             model="gpt-3.5-turbo-1106",
             messages=self.messages,
@@ -597,7 +636,7 @@ def get_coin_data(name):
         response = requests.get(base_url + endpoint, headers=headers, params=params)
         data = response.json()
     # print(data)
-        coin_data = data['data']['1']
+        coin_data = data['data'][str(res)]
         return coin_data
     except:
         return None

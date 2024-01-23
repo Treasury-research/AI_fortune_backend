@@ -368,34 +368,34 @@ def baziMatch(year,month,day,t_ime,year_a,month_a,day_a,t_ime_a,name=None,coin_d
         yearList.append(str(daYun.getStartYear()))
         ageList.append(str(daYun.getStartAge()) + "岁")
 
-    if name is None:
-        print(f"本人信息：")
-        print(f"出生地时间（公历）：{year}年 {month}月 {day}日 {t_ime}时")
-        print("胎元：")
-        # print(f"十神：  {ygs}   {mgs}   日主   {tgs}")
-        print(f"乾造    {a[20+yg]+a[30+yz]}   {a[20+mg]+a[30+mz]}   {a[20+dg]+a[30+dz]}   {a[20+tg]+a[30+tz]}")
-        print(f"支十神：{a[yzs]}   {a[mzs]}   {a[dzs]}   {a[tzs]}")
-        print("十神")
-        for i in range(1, 9):
-            sx = ((mg + 10) - i) % 10
-            xy = ((sx + 11 - dg) + ((dg + 1) % 2) * ((sx + 10 - dg) % 2) * 2) % 10
-            print(a[xy],end="   ")
-        print()
-        print("大运")
-        for i in range(1, 9):
-            print(f"{a[20 + ((mg + 10 - i) % 10)]}{a[30 + ((mz + 12 - i) % 12)]}", end="   ")
-        print()
+    # if name is None:
+    #     print(f"本人信息：")
+    #     print(f"出生地时间（公历）：{year}年 {month}月 {day}日 {t_ime}时")
+    #     print("胎元：")
+    #     # print(f"十神：  {ygs}   {mgs}   日主   {tgs}")
+    #     print(f"乾造    {a[20+yg]+a[30+yz]}   {a[20+mg]+a[30+mz]}   {a[20+dg]+a[30+dz]}   {a[20+tg]+a[30+tz]}")
+    #     print(f"支十神：{a[yzs]}   {a[mzs]}   {a[dzs]}   {a[tzs]}")
+    #     print("十神")
+    #     for i in range(1, 9):
+    #         sx = ((mg + 10) - i) % 10
+    #         xy = ((sx + 11 - dg) + ((dg + 1) % 2) * ((sx + 10 - dg) % 2) * 2) % 10
+    #         print(a[xy],end="   ")
+    #     print()
+    #     print("大运")
+    #     for i in range(1, 9):
+    #         print(f"{a[20 + ((mg + 10 - i) % 10)]}{a[30 + ((mz + 12 - i) % 12)]}", end="   ")
+    #     print()
 
-        # Print the ages
-        print("     ".join(ageList))
-        # Print the years
-        print("   ".join(yearList))
-        print ('')
-        print ('出生' + str(yun.getStartYear()) + '年' + str(yun.getStartMonth()) + '个月' + str(yun.getStartDay()) + '天后起运')
-        print ('阳历' + yun.getStartSolar().toYmd() + '后起运')
-        print(f"生肖为：{b[30+yz]}")
-        print(f"命宫为：{m_n}")
-        print("-"*120)
+    #     # Print the ages
+    #     print("     ".join(ageList))
+    #     # Print the years
+    #     print("   ".join(yearList))
+    #     print ('')
+    #     print ('出生' + str(yun.getStartYear()) + '年' + str(yun.getStartMonth()) + '个月' + str(yun.getStartDay()) + '天后起运')
+    #     print ('阳历' + yun.getStartSolar().toYmd() + '后起运')
+    #     print(f"生肖为：{b[30+yz]}")
+    #     print(f"命宫为：{m_n}")
+    #     print("-"*120)
     if name:
         print(f"资产信息：")
         print(f"资产名字：{name}")
@@ -431,7 +431,8 @@ def baziMatch(year,month,day,t_ime,year_a,month_a,day_a,t_ime_a,name=None,coin_d
         ageList.append(str(daYun.getStartAge()) + "岁")
 
     # Print the ages
-    print("     ".join(ageList))
+    if name is None:
+        print("     ".join(ageList))
     # Print the years
     print("   ".join(yearList))
 
@@ -441,8 +442,9 @@ def baziMatch(year,month,day,t_ime,year_a,month_a,day_a,t_ime_a,name=None,coin_d
         print ('阳历' + yun.getStartSolar().toYmd() + '后起运')
 
     print()
-    print(f"生肖为：{b[30+yz_a]}")
-    print(f"命宫为：{m_v}")
+    if name is None:
+        print(f"生肖为：{b[30+yz_a]}")
+        print(f"命宫为：{m_v}")
     print("-"*120)
 
     if coin_data:
