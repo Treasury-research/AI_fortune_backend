@@ -754,6 +754,7 @@ def baziMatchRes():
         else:
             name = data["name"]
             coin_data = get_coin_data(name)
+            logging.info(f"coin data is {coin_data}")
             res = baziMatch(birthday.year,birthday.month,birthday.day,birthday.hour, year,month,day,t_ime,name=name,coin_data=coin_data)
             db_res = res
         logging.info(f"res is:{res}")
