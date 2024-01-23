@@ -351,54 +351,56 @@ def baziMatch(year,month,day,t_ime,year_a,month_a,day_a,t_ime_a,name=None):
 
     # 总得分
     total_score = bb + c + yh + rh + rrh + ez
+    if name is not None:
+        print(f"本人信息：")
+        print(f"出生地时间（公历）：{year}年 {month}月 {day}日 {t_ime}时")
+        print("胎元：")
+        # print(f"十神：  {ygs}   {mgs}   日主   {tgs}")
+        print(f"乾造    {a[20+yg]+a[30+yz]}   {a[20+mg]+a[30+mz]}   {a[20+dg]+a[30+dz]}   {a[20+tg]+a[30+tz]}")
+        print(f"支十神：{a[yzs]}   {a[mzs]}   {a[dzs]}   {a[tzs]}")
+        print("十神")
+        for i in range(1, 9):
+            sx = ((mg + 10) - i) % 10
+            xy = ((sx + 11 - dg) + ((dg + 1) % 2) * ((sx + 10 - dg) % 2) * 2) % 10
+            print(a[xy],end="   ")
+        print()
+        print("大运")
+        for i in range(1, 9):
+            print(f"{a[20 + ((mg + 10 - i) % 10)]}{a[30 + ((mz + 12 - i) % 12)]}", end="   ")
+        print()
+        from lunar_python import Lunar, Solar
 
-    print(f"本人信息：")
-    print(f"出生地时间（公历）：{year}年 {month}月 {day}日 {t_ime}时")
-    print("胎元：")
-    # print(f"十神：  {ygs}   {mgs}   日主   {tgs}")
-    print(f"乾造    {a[20+yg]+a[30+yz]}   {a[20+mg]+a[30+mz]}   {a[20+dg]+a[30+dz]}   {a[20+tg]+a[30+tz]}")
-    print(f"支十神：{a[yzs]}   {a[mzs]}   {a[dzs]}   {a[tzs]}")
-    print("十神")
-    for i in range(1, 9):
-        sx = ((mg + 10) - i) % 10
-        xy = ((sx + 11 - dg) + ((dg + 1) % 2) * ((sx + 10 - dg) % 2) * 2) % 10
-        print(a[xy],end="   ")
-    print()
-    print("大运")
-    for i in range(1, 9):
-        print(f"{a[20 + ((mg + 10 - i) % 10)]}{a[30 + ((mz + 12 - i) % 12)]}", end="   ")
-    print()
-    from lunar_python import Lunar, Solar
+        lunar = Solar.fromYmd(year, month, day).getLunar()
+        baZi = lunar.getEightChar()
+        yun = baZi.getYun(0)
+        daYunArr = yun.getDaYun()
 
-    lunar = Solar.fromYmd(year, month, day).getLunar()
-    baZi = lunar.getEightChar()
-    yun = baZi.getYun(0)
-    daYunArr = yun.getDaYun()
+        yearList = []
+        ageList = []
 
-    yearList = []
-    ageList = []
+        for i in range(0, len(daYunArr)):
+            daYun = daYunArr[i]
+            yearList.append(str(daYun.getStartYear()))
+            ageList.append(str(daYun.getStartAge()) + "岁")
 
-    for i in range(0, len(daYunArr)):
-        daYun = daYunArr[i]
-        yearList.append(str(daYun.getStartYear()))
-        ageList.append(str(daYun.getStartAge()) + "岁")
-
-    # Print the ages
-    print("     ".join(ageList))
-    # Print the years
-    print("   ".join(yearList))
-    print ('')
-    print ('出生' + str(yun.getStartYear()) + '年' + str(yun.getStartMonth()) + '个月' + str(yun.getStartDay()) + '天后起运')
-    print ('阳历' + yun.getStartSolar().toYmd() + '后起运')
-    print(f"生肖为：{b[30+yz]}")
-    print(f"命宫为：{m_n}")
-    print("-"*120)
+        # Print the ages
+        print("     ".join(ageList))
+        # Print the years
+        print("   ".join(yearList))
+        print ('')
+        print ('出生' + str(yun.getStartYear()) + '年' + str(yun.getStartMonth()) + '个月' + str(yun.getStartDay()) + '天后起运')
+        print ('阳历' + yun.getStartSolar().toYmd() + '后起运')
+        print(f"生肖为：{b[30+yz]}")
+        print(f"命宫为：{m_n}")
+        print("-"*120)
     if name:
         print(f"资产信息：")
         print(f"资产名字：{name}")
+        print(f"创世块时间（公历）：{year_a}年 {month_a}月 {day_a}日 {t_ime_a}时")
+
     else:
         print(f"他人信息：")
-    print(f"出生地时间（公历）：{year_a}年 {month_a}月 {day_a}日 {t_ime_a}时")
+        print(f"出生地时间（公历）：{year_a}年 {month_a}月 {day_a}日 {t_ime_a}时")
     # print(f"十神：  {ygs_a}   {mgs_a}   日主   {tgs_a}")
     print("胎元：")
     print(f"乾造    {a[20+yg_a]+a[30+yz_a]}   {a[20+mg_a]+a[30+mz_a]}   {a[20+dg_a]+a[30+dz_a]}   {a[20+tg_a]+a[30+tz_a]}")
@@ -431,8 +433,9 @@ def baziMatch(year,month,day,t_ime,year_a,month_a,day_a,t_ime_a,name=None):
     print("   ".join(yearList))
 
     print ('')
-    print ('出生' + str(yun.getStartYear()) + '年' + str(yun.getStartMonth()) + '个月' + str(yun.getStartDay()) + '天后起运')
-    print ('阳历' + yun.getStartSolar().toYmd() + '后起运')
+    if name is not None:
+        print ('出生' + str(yun.getStartYear()) + '年' + str(yun.getStartMonth()) + '个月' + str(yun.getStartDay()) + '天后起运')
+        print ('阳历' + yun.getStartSolar().toYmd() + '后起运')
 
     print()
     print(f"生肖为：{b[30+yz_a]}")

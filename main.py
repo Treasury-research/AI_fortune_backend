@@ -308,10 +308,17 @@ class TiDBManager:
                 return False,bazi_info
 
 
-    def select_birthday(self, user_id):
+    def select_birthday(self, user_id=None, matcher_type=None, matcher_id=None):
         with self.db.cursor() as cursor:
-            sql = "SELECT birthday FROM AI_fortune_bazi WHERE user_id=%s"
-            cursor.execute(sql, (user_id,))
+            if matcher_type==1:
+                sql = "SELECT birthday FROM AI_fortune_tg_bot_other_human WHERE id=%s"
+                cursor.execute(sql, (matcher_id,))
+            elif matcher_type==2:
+                sql = "SELECT birthday FROM AI_fortune_assets WHERE id=%s"
+                cursor.execute(sql, (matcher_id,))
+            else:
+                sql = "SELECT birthday FROM AI_fortune_bazi WHERE user_id=%s"
+                cursor.execute(sql, (user_id,))
             result = cursor.fetchone()
             if result:
                 return result[0]
@@ -389,7 +396,7 @@ class ChatGPT:
         # content 就是一个基本的prompt
         content = f"""我想你作为一个命理占卜分析师。我将给你如下信息，本人的生辰八字和需要配对者的生辰八字，还有八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
         注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
-        如果用户想知道本人八字的详细信息,请你回答"请到本人八字聊天中进行个人信息的详细询问."
+        如果用户想知道自己八字的详细信息(如出现:'我的八字好嘛?','我的五行评分','我的八字运势'等),请你回答"请到本人八字聊天中进行个人信息的详细询问."
         你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
         
 
@@ -486,7 +493,7 @@ class tg_bot_ChatGPT:
         """
         content_match_human = f"""我想你作为一个命理占卜分析师。我将给你如下信息，本人的生辰八字和需要配对人的生辰八字，还有八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
         注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
-        如果用户想知道本人八字的详细信息,请你回答"请到本人八字聊天中进行个人信息的详细询问."
+        如果用户想知道自己八字的详细信息(如出现:'我的八字好嘛?','我的五行评分','我的八字运势'等),请你回答"请到本人八字聊天中进行个人信息的详细询问."
         你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
 
 
@@ -495,7 +502,7 @@ class tg_bot_ChatGPT:
 
         content_match_asset = f"""我想你作为一个命理占卜分析师。我将给你如下信息，本人的生辰八字和需要配对资产的生辰八字，还有八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
         注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
-        如果用户想知道本人八字的详细信息,请你回答"请到本人八字聊天中进行个人信息的详细询问."
+        如果用户想知道自己八字的详细信息(如出现:'我的八字好嘛?','我的五行评分','我的八字运势'等),请你回答"请到本人八字聊天中进行个人信息的详细询问."
         你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
 
 
@@ -554,7 +561,7 @@ class options:
         self.r = r
         self.n = n
 
-def stream_output(message, user_id):
+def stream_output(message, user_id=None):
     # Stream的格式：<chunk>xxxxx</chunk><chunk>{id:'xxxx'}</chunk>
     # streams = ["<chunk>", bazi_info, "</chunk>","<chunk>",f"{{'user_id':{user_id}}}","</chunk>"]
     # for data in streams:
@@ -647,7 +654,7 @@ def baziMatchRes():
         logging.info(f"res is:{res}")
         birthday_match = datetime(year, month, day, t_ime)
         tidb_manager.insert_baziInfo(user_id, birthday, res, conversation_id, birthday_match=birthday_match)
-        return Response(stream_output(res, user_id), mimetype="text/event-stream")
+        return Response(stream_output(res, None), mimetype="text/event-stream")
 
 
 @app.route('/api/chat_bazi', methods=['POST'])
@@ -768,6 +775,7 @@ def tg_bot_bazi_insert():
     matcher_type = data.get('matcher_type')
     name_or_gender = data.get('name_or_gender') # gender:true代表女 false代表男 name直接输入名字
     user_id = data.get('user_id')
+    matcher_id = data.get('matcher_id')
 
     tidb_manager = TiDBManager()
     # 如果matcher_type 是0代表本人，是1，代表其他人， 2代表资产(int)
@@ -788,13 +796,17 @@ def tg_bot_bazi_insert():
         return Response(stream_output(bazi_info,user_id), mimetype="text/event-stream")
     elif matcher_type == 1:
         birthday_user = tidb_manager.select_birthday(user_id)
-        bazi_info = tidb_manager.select_baziInfo(user_id)
         n = name_or_gender
         year_match, month_match, day_match, time_match = map(int, birthday.split('-'))
-        res = baziMatch(birthday_user.year,birthday_user.month,birthday_user.day,birthday_user.hour, year_match,month_match,day_match,t_ime_match)
+        if matcher_id:
+            birthday_match = tidb_manager.select_birthday(matcher_type=1,matcher_id=matcher_id)
+            year_match,month_match,day_match,time_match = birthday_match.year,birthday_match.month,birthday_match.day,birthday_match.hour
+        else:
+            birthday_match = datetime(year_match, month_match, day_match, time_match)
+            matcher_id = tidb_manager.insert_other_human(n, birthday_match, user_id)
+        res = baziMatch(birthday_user.year,birthday_user.month,birthday_user.day,birthday_user.hour, year_match,month_match,day_match,time_match)
         logging.info(f"res is:{res}")
-        birthday_match = datetime(year_match, month_match, day_match, time_match)
-        matcher_id = tidb_manager.insert_other_human(n, birthday_match, user_id)
+
         bazi_id = tidb_manager.insert_baziInfo(user_id, birthday_user, res, conversation_id, birthday_match=birthday_match, matcher_type=matcher_type, matcher_id=matcher_id)
         tidb_manager.insert_tg_bot_conversation_user(conversation_id, user_id, bazi_id)
         return Response(stream_output(res, user_id), mimetype="text/event-stream")
@@ -802,10 +814,14 @@ def tg_bot_bazi_insert():
         birthday_user = tidb_manager.select_birthday(user_id)
         name = name_or_gender
         year_match, month_match, day_match, time_match = map(int, birthday.split('-'))
-        res = baziMatch(birthday_user.year,birthday_user.month,birthday_user.day,birthday_user.hour, year_match,month_match,day_match,t_ime_match,name=name)
+        if matcher_id:
+            birthday_match = tidb_manager.select_birthday(matcher_type=2,matcher_id=matcher_id)
+            year_match,month_match,day_match,time_match = birthday_match.year,birthday_match.month,birthday_match.day,birthday_match.hour
+        else:
+            birthday_match = datetime(year_match, month_match, day_match, time_match)
+            matcher_id = tidb_manager.insert_asset(name, birthday_match,user_id=user_id)
+        res = baziMatch(birthday_user.year,birthday_user.month,birthday_user.day,birthday_user.hour, year_match,month_match,day_match,time_match,name=name)
         logging.info(f"res is:{res}")
-        birthday_match = datetime(year_match, month_match, day_match, time_match)
-        matcher_id = tidb_manager.insert_asset(name, birthday_match,user_id=user_id)
         bazi_id = tidb_manager.insert_baziInfo(user_id, birthday_user, res, conversation_id, birthday_match=birthday_match, matcher_type=matcher_type, matcher_id=matcher_id)
         tidb_manager.insert_tg_bot_conversation_user(conversation_id, user_id, bazi_id)
         return Response(stream_output(res, user_id), mimetype="text/event-stream")
