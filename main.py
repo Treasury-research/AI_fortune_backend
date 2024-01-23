@@ -421,7 +421,7 @@ class ChatGPT:
         conversation_messages = self.tidb_manager.get_conversation(conversation_id=self.conversation_id)
         # 如果对话中存在未重置的记录，那么优先使用
         # content 就是一个基本的prompt
-        content = f"""我想你作为一个命理占卜分析师。我将给你如下信息，配对者的生辰八字，还有八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
+        content = f"""我想你作为一个命理占卜分析师。我将给你如下信息，他人/配对者的生辰八字，还有八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
         注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
         你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
         
@@ -742,7 +742,8 @@ def baziMatchRes():
             match_res = baziMatch(birthday.year,birthday.month,birthday.day,birthday.hour, year,month,day,t_ime)
             op = options(year=year,month=month,day=day,time=t_ime,n=n)
             res = baziAnalysis(op)
-            db_res = res + "\n" + match_res
+            db_res = "他人/配对者的八字背景信息如下:\n"
+            db_res = db_res + res + "\n" + match_res
         else:
             name = data["name"]
             coin_data = get_coin_data(name)
