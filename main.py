@@ -248,12 +248,18 @@ class TiDBManager:
         self.db.commit()
         return generated_uuid
 
-    def update_bazi_info(self, birthday, bazi_info, bazi_id):
+    def update_bazi_info(self, bazi_info, bazi_id=None, birthday=None,conversation_id = None):
         with self.db.cursor() as cursor:
-            sql = """
-                UPDATE AI_fortune_bazi SET birthday = %s, bazi_info = %s WHERE id = %s 
-                """
-            cursor.execute(sql, (birthday, bazi_info, bazi_id))
+            if bazi_id:
+                sql = """
+                    UPDATE AI_fortune_bazi SET birthday = %s, bazi_info = %s WHERE id = %s 
+                    """
+                cursor.execute(sql, (birthday, bazi_info, bazi_id))
+            elif conversation_id:
+                sql = """
+                    UPDATE AI_fortune_bazi SET bazi_info = %s WHERE conversation_id = %s 
+                    """
+                cursor.execute(sql, (bazi_info, conversation_id))
         self.db.commit()
     def select_bazi_id(self, user_id=None, conversation_id=None, matcher_id=None):
         with self.db.cursor() as cursor:
@@ -644,6 +650,7 @@ def stream_output(message, user_id=None):
 
 def get_coin_data(name):
     try:
+        tidb_manager = TiDBManager()
         res = tidb_manager.select_coin_id(name = name)
         import requests
         base_url = 'https://pro-api.coinmarketcap.com'
@@ -779,8 +786,14 @@ def chat_bazi_match():
 def reset_chat():
     data = request.get_json()
     conversation_id = data.get('conversation_id')
+    matcher_id = data.get('matcher_id')
+
     tidb_manager = TiDBManager()
+    # if matcher_id:
+    #     bazi_info = tidb_manager.select_baziInfo(conversation_id=conversation_id)
+    #     tidb_manager.update_bazi_info()
     res = tidb_manager.reset_conversation(conversation_id)
+
     # Return the ChatGPT's response
     if res:
         return jsonify({"status": "success"}, 200)
@@ -814,6 +827,7 @@ def asset_select():
     user_id = data.get('user_id')
     tidb_manager = TiDBManager()
     _res = tidb_manager.select_asset(user_id)
+    # res = res_
     res = [(name, birthday) for name, birthday, _ in _res]
     # res = tidb_manager.select_asset(user_id)
     # Return the ChatGPT's response
