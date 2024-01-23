@@ -396,7 +396,7 @@ class ChatGPT:
         # content 就是一个基本的prompt
         content = f"""我想你作为一个命理占卜分析师。我将给你如下信息，本人的生辰八字和需要配对者的生辰八字，还有八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
         注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
-        如果用户想知道自己八字的详细信息(如出现:'我的八字好嘛?','我的五行评分','我的八字运势'等),请你回答"请到本人八字聊天中进行个人信息的详细询问."
+        如果用户询问本人八字,请你回答"请到本人八字聊天中进行个人信息的详细询问"
         你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
         
 
@@ -493,7 +493,7 @@ class tg_bot_ChatGPT:
         """
         content_match_human = f"""我想你作为一个命理占卜分析师。我将给你如下信息，本人的生辰八字和需要配对人的生辰八字，还有八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
         注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
-        如果用户想知道自己八字的详细信息(如出现:'我的八字好嘛?','我的五行评分','我的八字运势'等),请你回答"请到本人八字聊天中进行个人信息的详细询问."
+        如果用户询问本人八字,请你回答"请到本人八字聊天中进行个人信息的详细询问"
         你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
 
 
@@ -502,7 +502,7 @@ class tg_bot_ChatGPT:
 
         content_match_asset = f"""我想你作为一个命理占卜分析师。我将给你如下信息，本人的生辰八字和需要配对资产的生辰八字，还有八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
         注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
-        如果用户想知道自己八字的详细信息(如出现:'我的八字好嘛?','我的五行评分','我的八字运势'等),请你回答"请到本人八字聊天中进行个人信息的详细询问."
+        如果用户询问本人八字,请你回答"请到本人八字聊天中进行个人信息的详细询问"
         你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
 
 
@@ -672,14 +672,18 @@ def baziMatchRes():
         t_ime = int(int(t_ime.split("-")[0])/2  + int(t_ime.split("-")[1]) / 2 ) # 提取开始小时
         birthday = tidb_manager.select_birthday(user_id)
         if matcher_type==1: # 与他人匹配
-            res = baziMatch(birthday.year,birthday.month,birthday.day,birthday.hour, year,month,day,t_ime)
+            match_res = baziMatch(birthday.year,birthday.month,birthday.day,birthday.hour, year,month,day,t_ime)
+            op = options(year=year,month=month,day=day,time=t_ime,n=n)
+            res = baziAnalysis(op)
+            db_res = res + "\n" + match_res
         else:
             name = data["name"]
             coin_data = get_coin_data(name)
             res = baziMatch(birthday.year,birthday.month,birthday.day,birthday.hour, year,month,day,t_ime,name=name,coin_data=coin_data)
+            db_res = res
         logging.info(f"res is:{res}")
         birthday_match = datetime(year, month, day, t_ime)
-        tidb_manager.insert_baziInfo(user_id, birthday, res, conversation_id, birthday_match=birthday_match)
+        tidb_manager.insert_baziInfo(user_id, birthday, db_res, conversation_id, birthday_match=birthday_match)
         return Response(stream_output(res, None), mimetype="text/event-stream")
 
 
