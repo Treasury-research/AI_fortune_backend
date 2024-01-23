@@ -17,7 +17,7 @@ def capture_print(func):
 
 
 @capture_print
-def baziMatch(year,month,day,t_ime,year_a,month_a,day_a,t_ime_a,name=None):
+def baziMatch(year,month,day,t_ime,year_a,month_a,day_a,t_ime_a,name=None,coin_data=None):
     def safe_convert(x):
         r = 100 - x
         s = r % 9
@@ -368,7 +368,7 @@ def baziMatch(year,month,day,t_ime,year_a,month_a,day_a,t_ime_a,name=None):
         yearList.append(str(daYun.getStartYear()))
         ageList.append(str(daYun.getStartAge()) + "岁")
 
-    if name is None:
+    if name is not None:
         print(f"本人信息：")
         print(f"出生地时间（公历）：{year}年 {month}月 {day}日 {t_ime}时")
         print("胎元：")
@@ -444,6 +444,21 @@ def baziMatch(year,month,day,t_ime,year_a,month_a,day_a,t_ime_a,name=None):
     print(f"生肖为：{b[30+yz_a]}")
     print(f"命宫为：{m_v}")
     print("-"*120)
+
+    if coin_data:
+        coin_quote = coin_data['quote']['USD']
+
+        # 打印比特币信息
+        print(f"名称: {coin_data['name']} (符号: {coin_data['symbol']})")
+        print(f"价格: ${coin_quote['price']:.2f}")
+        print(f"24小时交易量: ${coin_quote['volume_24h']:.2f}")
+        print(f"市值: ${coin_quote['market_cap']:.2f}")
+        print(f"1小时内价格变化百分比: {coin_quote['percent_change_1h']:.2f}%")
+        print(f"24小时内价格变化百分比: {coin_quote['percent_change_24h']:.2f}%")
+        print(f"7天内价格变化百分比: {coin_quote['percent_change_7d']:.2f}%")
+        print(f"30天内价格变化百分比: {coin_quote['percent_change_30d']:.2f}%")
+        print(f"60天内价格变化百分比: {coin_quote['percent_change_60d']:.2f}%")
+        print(f"90天内价格变化百分比: {coin_quote['percent_change_90d']:.2f}%")
     print("匹配信息：")
     if name:
         print(f"""

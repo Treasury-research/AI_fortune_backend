@@ -575,7 +575,32 @@ def stream_output(message, user_id=None):
     else:
         yield f"{message}"
 
+def get_coin_data(name):
+    try:
+        res = tidb_manager.select_coin_id(name = name)
+        import requests
+        base_url = 'https://pro-api.coinmarketcap.com'
+        # Endpoint for getting cryptocurrency quotes
+        endpoint = '/v2/cryptocurrency/quotes/latest'
+        # Parameters
+        params = {
+            'id': res,  # Replace with the actual ID you want to query
+        }
 
+        # Headers
+        headers = {
+            'Accepts': 'application/json',
+            'X-CMC_PRO_API_KEY': os.environ["CMC_API_KEY"],
+        }
+
+        # Make the request
+        response = requests.get(base_url + endpoint, headers=headers, params=params)
+        data = response.json()
+    # print(data)
+        coin_data = data['data']['1']
+        return coin_data
+    except:
+        return None
 @app.route('/api/baziAnalysis',methods=['POST','GET'])
 def baziAnalysis_stream():
     year = '2000'
@@ -650,7 +675,8 @@ def baziMatchRes():
             res = baziMatch(birthday.year,birthday.month,birthday.day,birthday.hour, year,month,day,t_ime)
         else:
             name = data["name"]
-            res = baziMatch(birthday.year,birthday.month,birthday.day,birthday.hour, year,month,day,t_ime,name=name)
+            coin_data = get_coin_data(name)
+            res = baziMatch(birthday.year,birthday.month,birthday.day,birthday.hour, year,month,day,t_ime,name=name,coin_data=coin_data)
         logging.info(f"res is:{res}")
         birthday_match = datetime(year, month, day, t_ime)
         tidb_manager.insert_baziInfo(user_id, birthday, res, conversation_id, birthday_match=birthday_match)
