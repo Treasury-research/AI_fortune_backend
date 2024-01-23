@@ -454,7 +454,7 @@ class tg_bot_ChatGPT:
         self.load_history()
 
     def get_basic_param(self):
-        self.bazi_id = self.tidb_manager.select_tg_bot_conversation_user(self.conversation_id)
+        self.bazi_id = self.tidb_manager.select_tg_bot_conversation_user(conversation_id=self.conversation_id)
         res, self.bazi_info = self.tidb_manager.select_match_baziInfo_tg_bot(self.bazi_id)
         if res:
             # 是配对过的
@@ -481,7 +481,7 @@ class tg_bot_ChatGPT:
 
     def load_history(self):
         # if the history message exist in , concat it and compute the token lens
-        conversation_messages = self.tidb_manager.get_conversation(self.conversation_id)
+        conversation_messages = self.tidb_manager.get_conversation(conversation_id=self.conversation_id)
         # 如果对话中存在未重置的记录，那么优先使用
         # content 就是一个基本的prompt
         content = f"""我想你作为一个命理占卜分析师。你的工作是根据我给定的中国传统命理占卜的生辰八字和对应的八字批文信息作为整个对话的背景知识进行问题的回答。
@@ -626,7 +626,7 @@ def baziAnalysis_stream():
             return jsonify({"error":"无效的日期格式。请使用 YYYY-M-D-H 格式。"}, 400)
         op = options(year=year,month=month,day=day,time=time,g=g,b=b,n=n,r=r)
         output = baziAnalysis(op)
-        return Response(output, content_type="text/plain; charset=utf-8")
+        return Response((output,user_id), content_type="text/plain; charset=utf-8")
 
 
 @app.route('/api/baziMatch',methods=['POST','GET'])
@@ -786,11 +786,10 @@ def tg_bot_bazi_insert():
         op = options(year=year,month=month,day=day,time=time,n=n)
         bazi_info = baziAnalysis(op)
         birthday = datetime(year, month, day, time)
-        if user_id:
-            bazi_id = tidb_manager.select_bazi_id(user_id=user_id)
+        bazi_id = tidb_manager.select_bazi_id(user_id=user_id)
+        if bazi_id:
             tidb_manager.update_bazi_info(birthday, bazi_info, bazi_id)
         else:
-            user_id = str(uuid.uuid4())
             bazi_id = tidb_manager.insert_baziInfo(user_id, birthday, bazi_info, conversation_id)
         tidb_manager.insert_tg_bot_conversation_user(conversation_id, user_id, bazi_id)
         return Response(stream_output(bazi_info,user_id), mimetype="text/event-stream")
