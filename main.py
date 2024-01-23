@@ -370,6 +370,7 @@ class ChatGPT:
             model="gpt-3.5-turbo-1106",
             messages=messages
         )
+        res = rsp.choices[0]["message"]["content"]
         logging.info(f"问题类型:{res}")
         if '1' in res:
             return True
@@ -518,6 +519,7 @@ class tg_bot_ChatGPT:
             model="gpt-3.5-turbo-1106",
             messages=messages
         )
+        res = rsp.choices[0]["message"]["content"]
         logging.info(f"问题类型:{res}")
         if '1' in res:
             return True
