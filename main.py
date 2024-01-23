@@ -359,7 +359,14 @@ class ChatGPT:
     def _is_own(self,message):
         messages = []
         messages.append({"role": "user", "content": f"""
-        你是一个语言专家，我会给你一个语句，请你告诉我这个句子 是指的我本人还是他人 还是指的我和他人。 如果是本人，返回给我1，如果是他人返回2，如果是我和他人 返回3. 如果没有任何主语返回0
+        你是一个语言专家，我会给你一个语句，请你告诉我这个句子 是指的我本人,还是他人,还是指的我和他人。 如果是本人，返回给我1，如果是他人返回2，如果是我和他人 返回3. 如果没有任何主语返回0
+        另外,当前人属于他人.
+        如:
+        1."我问你这个人的八字，上文有提到" 应该返回2,他人,因为问的是这个人,属于当前人,即为他人
+        2."当前人的八字已经给你了，上面有说，你不知道?" 应该返回2,他人,因为问的是当前人,即为他人
+        3."你知道我的八字吗?" 应该返回1,因为询问的是我的八字,即为本人
+        4."我想问你我两的关系如何" 应该返回 3,我和他人,因为问的是我两
+        5."这是什么东西?" 应该返回0,因为没有任何主语
         判断一下问题询问的是本人\他人\群体 
         返回格式是json, 格式如下:
         {{
@@ -451,7 +458,7 @@ class ChatGPT:
             if is_own:
                 res = "请到本人八字聊天中进行详细咨询。"
                 yield res
-                self.messages.append({"role": "assistant", "content": res})
+                # self.messages.append({"role": "assistant", "content": res})
                 # self.writeToTiDB(user_message, res)
                 return 
         rsp = openai.ChatCompletion.create(
@@ -508,7 +515,14 @@ class tg_bot_ChatGPT:
     def _is_own(self,message):
         messages = []
         messages.append({"role": "user", "content": f"""
-        你是一个语言专家，我会给你一个语句，请你告诉我这个句子 是指的我本人还是他人 还是指的我和他人。 如果是本人，返回给我1，如果是他人返回2，如果是我和他人 返回3. 如果没有任何主语返回0
+        你是一个语言专家，我会给你一个语句，请你告诉我这个句子 是指的我本人,还是他人,还是指的我和他人。 如果是本人，返回给我1，如果是他人返回2，如果是我和他人 返回3. 如果没有任何主语返回0
+        另外,当前人属于他人.
+        如:
+        1."我问你这个人的八字，上文有提到" 应该返回2,他人,因为问的是这个人,属于当前人,即为他人
+        2."当前人的八字已经给你了，上面有说，你不知道?" 应该返回2,他人,因为问的是当前人,即为他人
+        3."你知道我的八字吗?" 应该返回1,因为询问的是我的八字,即为本人
+        4."我想问你我两的关系如何" 应该返回 3,我和他人,因为问的是我两
+        5."这是什么东西?" 应该返回0,因为没有任何主语
         判断一下问题询问的是本人\他人\群体 
         返回格式是json, 格式如下:
         {{
@@ -583,8 +597,8 @@ class tg_bot_ChatGPT:
             if is_own:
                 res = "请到本人八字聊天中进行详细咨询。"
                 yield res
-                self.messages.append({"role": "assistant", "content": res})
-                self.writeToTiDB(user_message, res)
+                # self.messages.append({"role": "assistant", "content": res})
+                # self.writeToTiDB(user_message, res)
                 return 
         rsp = openai.ChatCompletion.create(
             model="gpt-3.5-turbo-1106",
