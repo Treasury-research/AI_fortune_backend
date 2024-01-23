@@ -1,6 +1,8 @@
 import io
 import os
 import sys
+from lunar_python import Lunar, Solar
+
 def capture_print(func):
     def wrapper(*args, **kwargs):
         captured_output = io.StringIO()
@@ -351,6 +353,21 @@ def baziMatch(year,month,day,t_ime,year_a,month_a,day_a,t_ime_a,name=None):
 
     # 总得分
     total_score = bb + c + yh + rh + rrh + ez
+
+
+    lunar = Solar.fromYmd(year, month, day).getLunar()
+    baZi = lunar.getEightChar()
+    yun = baZi.getYun(0)
+    daYunArr = yun.getDaYun()
+
+    yearList = []
+    ageList = []
+
+    for i in range(0, len(daYunArr)):
+        daYun = daYunArr[i]
+        yearList.append(str(daYun.getStartYear()))
+        ageList.append(str(daYun.getStartAge()) + "岁")
+
     if name is not None:
         print(f"本人信息：")
         print(f"出生地时间（公历）：{year}年 {month}月 {day}日 {t_ime}时")
@@ -368,20 +385,6 @@ def baziMatch(year,month,day,t_ime,year_a,month_a,day_a,t_ime_a,name=None):
         for i in range(1, 9):
             print(f"{a[20 + ((mg + 10 - i) % 10)]}{a[30 + ((mz + 12 - i) % 12)]}", end="   ")
         print()
-        from lunar_python import Lunar, Solar
-
-        lunar = Solar.fromYmd(year, month, day).getLunar()
-        baZi = lunar.getEightChar()
-        yun = baZi.getYun(0)
-        daYunArr = yun.getDaYun()
-
-        yearList = []
-        ageList = []
-
-        for i in range(0, len(daYunArr)):
-            daYun = daYunArr[i]
-            yearList.append(str(daYun.getStartYear()))
-            ageList.append(str(daYun.getStartAge()) + "岁")
 
         # Print the ages
         print("     ".join(ageList))
