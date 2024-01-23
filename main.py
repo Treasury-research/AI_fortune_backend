@@ -362,10 +362,11 @@ class ChatGPT:
         rsp = openai.ChatCompletion.create(
             model="gpt-3.5-turbo-1106",
             messages=messages,
-            max_tokens=1
+            max_tokens=4
         )
         res = rsp.choices[0]["message"]["content"]
-        if '0' in res:
+        logging.info(f"问题类型:{res}")
+        if '0' in res or '本' in res or '本人' in res:
             return True
         else:
             return False
@@ -504,10 +505,11 @@ class tg_bot_ChatGPT:
         rsp = openai.ChatCompletion.create(
             model="gpt-3.5-turbo-1106",
             messages=messages,
-            max_tokens=1
+            max_tokens=4
         )
         res = rsp.choices[0]["message"]["content"]
-        if '0' in res:
+        logging.info(f"问题类型:{res}")
+        if '0' in res or '本' in res or '本人' in res:
             return True
         else:
             return False
@@ -523,21 +525,21 @@ class tg_bot_ChatGPT:
 
         生辰八字和对应的批文：{self.bazi_info}
         """
-        content = f"""我想你作为一个命理占卜分析师。我将给你如下信息，配对者的生辰八字，还有八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
-        注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
-        你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
+        # content = f"""我想你作为一个命理占卜分析师。我将给你如下信息，配对者的生辰八字，还有八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
+        # 注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
+        # 你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
 
 
-        信息：{self.bazi_info}
-        """
+        # 信息：{self.bazi_info}
+        # """
 
-        content = f"""我想你作为一个命理占卜分析师。我将给你如下信息，配对者的生辰八字，还有八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
-        注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
-        你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
+        # content = f"""我想你作为一个命理占卜分析师。我将给你如下信息，配对者的生辰八字，还有八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
+        # 注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
+        # 你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
 
 
-        信息：{self.bazi_info}
-        """
+        # 信息：{self.bazi_info}
+        # """
         if conversation_messages:
             conversations = self._trim_conversations(content, list(conversation_messages))
             # if the first item is not a tuple, that is bazi_info
