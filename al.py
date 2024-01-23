@@ -1,4 +1,21 @@
-def baziMatch(year,month,day,t_ime,year_a,month_a,day_a,t_ime_a):
+import io
+import os
+import sys
+def capture_print(func):
+    def wrapper(*args, **kwargs):
+        captured_output = io.StringIO()
+        current_stdout = sys.stdout
+        try:
+            sys.stdout = captured_output
+            func(*args, **kwargs)
+            return captured_output.getvalue()
+        finally:
+            sys.stdout = current_stdout
+    return wrapper
+
+
+@capture_print
+def baziMatch(year,month,day,t_ime,year_a,month_a,day_a,t_ime_a,name=None):
     def safe_convert(x):
         r = 100 - x
         s = r % 9
@@ -335,7 +352,139 @@ def baziMatch(year,month,day,t_ime,year_a,month_a,day_a,t_ime_a):
     # 总得分
     total_score = bb + c + yh + rh + rrh + ez
 
-    return total_score, bb, c, yh, rh, rrh, ez
+    print(f"本人信息：")
+    print(f"出生地时间（公历）：{year}年 {month}月 {day}日 {t_ime}时")
+    print("胎元：")
+    # print(f"十神：  {ygs}   {mgs}   日主   {tgs}")
+    print(f"乾造    {a[20+yg]+a[30+yz]}   {a[20+mg]+a[30+mz]}   {a[20+dg]+a[30+dz]}   {a[20+tg]+a[30+tz]}")
+    print(f"支十神：{a[yzs]}   {a[mzs]}   {a[dzs]}   {a[tzs]}")
+    print("十神")
+    for i in range(1, 9):
+        sx = ((mg + 10) - i) % 10
+        xy = ((sx + 11 - dg) + ((dg + 1) % 2) * ((sx + 10 - dg) % 2) * 2) % 10
+        print(a[xy],end="   ")
+    print()
+    print("大运")
+    for i in range(1, 9):
+        print(f"{a[20 + ((mg + 10 - i) % 10)]}{a[30 + ((mz + 12 - i) % 12)]}", end="   ")
+    print()
+    from lunar_python import Lunar, Solar
+
+    lunar = Solar.fromYmd(year, month, day).getLunar()
+    baZi = lunar.getEightChar()
+    yun = baZi.getYun(0)
+    daYunArr = yun.getDaYun()
+
+    yearList = []
+    ageList = []
+
+    for i in range(0, len(daYunArr)):
+        daYun = daYunArr[i]
+        yearList.append(str(daYun.getStartYear()))
+        ageList.append(str(daYun.getStartAge()) + "岁")
+
+    # Print the ages
+    print("     ".join(ageList))
+    # Print the years
+    print("   ".join(yearList))
+    print ('')
+    print ('出生' + str(yun.getStartYear()) + '年' + str(yun.getStartMonth()) + '个月' + str(yun.getStartDay()) + '天后起运')
+    print ('阳历' + yun.getStartSolar().toYmd() + '后起运')
+    print(f"生肖为：{b[30+yz]}")
+    print(f"命宫为：{m_n}")
+    print("-"*120)
+    if name:
+        print(f"资产信息：")
+        print(f"资产名字：{name}")
+    else:
+        print(f"他人信息：")
+    print(f"出生地时间（公历）：{year_a}年 {month_a}月 {day_a}日 {t_ime_a}时")
+    # print(f"十神：  {ygs_a}   {mgs_a}   日主   {tgs_a}")
+    print("胎元：")
+    print(f"乾造    {a[20+yg_a]+a[30+yz_a]}   {a[20+mg_a]+a[30+mz_a]}   {a[20+dg_a]+a[30+dz_a]}   {a[20+tg_a]+a[30+tz_a]}")
+    print(f"支十神：{a[yzs_a]}   {a[mzs_a]}   {a[dzs_a]}   {a[tzs_a]}")
+    print("十神")
+    for i in range(1, 9):
+        sx_a = ((mg_a + 10) - i) % 10
+        xy_a = ((sx_a + 11 - dg_a) + ((dg_a + 1) % 2) * ((sx_a + 10 - dg_a) % 2) * 2) % 10
+        print(a[xy_a],end="   ")
+    print()
+    print("大运")
+    for i in range(1, 9):
+        print(f"{a[20 + ((mg_a + 10 - i) % 10)]}{a[30 + ((mz_a + 12 - i) % 12)]}", end="   ")
+    print()
+    lunar = Solar.fromYmd(year_a, month_a, day_a).getLunar()
+    baZi = lunar.getEightChar()
+    yun = baZi.getYun(0)
+    daYunArr = yun.getDaYun()
+    yearList = []
+    ageList = []
+
+    for i in range(0, len(daYunArr)):
+        daYun = daYunArr[i]
+        yearList.append(str(daYun.getStartYear()))
+        ageList.append(str(daYun.getStartAge()) + "岁")
+
+    # Print the ages
+    print("     ".join(ageList))
+    # Print the years
+    print("   ".join(yearList))
+
+    print ('')
+    print ('出生' + str(yun.getStartYear()) + '年' + str(yun.getStartMonth()) + '个月' + str(yun.getStartDay()) + '天后起运')
+    print ('阳历' + yun.getStartSolar().toYmd() + '后起运')
+
+    print()
+    print(f"生肖为：{b[30+yz_a]}")
+    print(f"命宫为：{m_v}")
+    print("-"*120)
+    print("匹配信息：")
+    if name:
+        print(f"""
+1. 核心价值匹配：{bb}分
+    此项为30分。说明：评估个人与资产的核心价值是否相合。核心价值匹配通常意味着双方在投资理念、价值观和长期发展目标等方面有较好的一致性。
+
+2. 投资周期共振：{c}分
+    此项为20分。说明：分析个人与资产的投资周期是否存在共振，如是否符合相同的投资时段或市场周期。共振的投资周期表示在资产增值和收益实现上可能相辅相成。
+
+3. 风险偏好匹配：{yh}分
+    此项为5分。说明：考察个人与资产在风险承受能力和风险偏好上是否有相合或相补性，这表示双方在投资决策和市场适应上可能存在共鸣。
+
+4. 资产配置互补：{rh}分
+    此项为25分。说明：资产配置代表个人投资组合的多元化和平衡。如果个人与资产的配置能够互补，如稳定收益与高风险高回报的结合，这预示着双方在资产管理和收益优化上的互补或和谐。
+
+5. 流动性需求一致：{rrh}分
+    此项为5分。说明：探讨个人与资产在资金流动性需求上是否形成一致性，这关系到双方在资金周转和资产流动性管理中的协调配合。
+
+6. 综合适配度：{ez}分
+    此项为15分。说明：综合考虑个人与资产在投资目标、风险偏好、资金管理等方面的相合程度，反映双方在整体投资策略和资产管理上的适配性。
+
+7. 总分：{total_score}分
+    综合评分，反映个人与资产在各项指标上的匹配度，为投资决策提供参考依据。
+        """)
+    else:    
+        print(f"""
+1. 命宫相合：{bb}分
+    此项为30分 说明：根据两个八字的命宫是否相合来评分。命宫相合通常意味着两者在性格、命运走向等方面有较好的匹配度。
+
+2. 年支同气：{c}分
+    此项为20分 说明：考虑两个八字的年支（生肖）是否归属于相同的五行方位。例如，寅卯辰属东方木气，相同方位的年支表示在天性、运势方面可能相辅相成。
+
+3. 月令相合：{yh}分
+    此项为5分 说明：如果两个八字的月令（出生月的地支）相合或相生，这表示两者在一年中的能量周期上可能存在共鸣。
+
+4. 日干相合：{rh}分
+    此项为25分 说明：日干代表个体的本质和核心特质。如果两个八字的日干相合或相生，如一阴一阳的组合，这预示着两者在本质上的互补或和谐。
+
+5. 天干五合：{rrh}分
+    此项为5分 说明：考察两个八字的天干是否形成五行上的相合或相生关系，这关系到两者在五行动态平衡中的互动。
+
+6. 综合匹配度：{ez}分
+    此项为15分 说明：综合考虑两个八字在各方面的相合程度，包括性格、命运走向、生活习惯等方面的整体协调性。
+
+7. 总分：{total_score}分  
+                """)
+    # return total_score, bb, c, yh, rh, rrh, ez
 
 
 
@@ -349,4 +498,8 @@ def baziMatch(year,month,day,t_ime,year_a,month_a,day_a,t_ime_a):
 # month_a = 5 # 月份
 # day_a = 16  # 日
 # t_ime_a = 20 # 时
-# bazihunpei(2000,5,5,8,2000,5,14,10)
+# res = baziMatch(2000,5,5,8,2000,5,14,10)
+# print(res)
+# res = baziMatch(2000,5,5,8,2000,5,14,10,name="BTC")
+# print(res)
+# bazihunpei(2000,5,5,8,2000,5,14,10)  

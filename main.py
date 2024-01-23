@@ -341,6 +341,7 @@ class ChatGPT:
         total_tokens = sum(self._num_tokens_from_string(str(message)) for message in conversation_messages)
         # if total tokens exceeds the max_tokens, delete the oldest message
         # 如果总token数超过限制，则删除旧消息 
+        logging.info(f"The number of summary is: {total_tokens}")
         while total_tokens > max_tokens:
             # delete the first list item 删除列表的第一个元素
             removed_message = conversation_messages.pop(0)  
@@ -365,7 +366,7 @@ class ChatGPT:
         if conversation_messages:
             conversations = self._trim_conversations(content, list(conversation_messages))
             # if the first item is not a tuple, that is bazi_info
-            logging.info(f"conversation is: {conversations}")
+            # logging.info(f"conversation is: {conversations}")
             if type(conversations[0]) != tuple:
                 self.messages = [{"role": "system", "content": content}]
                 conversations = conversations[1:]
@@ -376,6 +377,7 @@ class ChatGPT:
                 self.messages.append({"role": "assistant", "content": conversation[1]})
         # 如果对话中不存在未重置的记录，那么意味着直接使用bazi_info作为背景知识
         else:
+            logging.info(f"the length is :{self._num_tokens_from_string(content)}")
             self.messages = [{"role": "system", "content": content}]
 
 
@@ -387,15 +389,16 @@ class ChatGPT:
         # content 就是一个基本的prompt
         content = f"""我想你作为一个命理占卜分析师。我将给你如下信息，本人的生辰八字和需要配对者的生辰八字，还有八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
         注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
+        如果用户想知道本人八字的详细信息,请你回答"请到本人八字聊天中进行个人信息的详细询问."
         你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
-
+        
 
         信息：{bazi_info}
         """
         if conversation_messages:
             conversations = self._trim_conversations(content, list(conversation_messages))
             # if the first item is not a tuple, that is bazi_info
-            logging.info(f"conversation is: {conversations}")
+            # logging.info(f"conversation is: {conversations}")
             if type(conversations[0]) != tuple:
                 self.messages = [{"role": "system", "content": content}]
                 conversations = conversations[1:]
@@ -483,6 +486,7 @@ class tg_bot_ChatGPT:
         """
         content_match_human = f"""我想你作为一个命理占卜分析师。我将给你如下信息，本人的生辰八字和需要配对人的生辰八字，还有八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
         注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
+        如果用户想知道本人八字的详细信息,请你回答"请到本人八字聊天中进行个人信息的详细询问."
         你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
 
 
@@ -491,6 +495,7 @@ class tg_bot_ChatGPT:
 
         content_match_asset = f"""我想你作为一个命理占卜分析师。我将给你如下信息，本人的生辰八字和需要配对资产的生辰八字，还有八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
         注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
+        如果用户想知道本人八字的详细信息,请你回答"请到本人八字聊天中进行个人信息的详细询问."
         你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
 
 
@@ -619,7 +624,9 @@ def baziMatchRes():
     if request.method =="POST":
         tidb_manager = TiDBManager()
         data = request.get_json()
+        logging.info(f"data is :{data}")
         year,month,day,t_ime,user_id,n = data['year'], data['month'], data['day'], data['time'], data['user_id'], data['n']
+        matcher_type = data["matcher_type"]
         try:
             year = int(year)
             month = int(month)
@@ -629,45 +636,12 @@ def baziMatchRes():
         conversation_id = request.get_json().get("conversation_id")
         t_ime = int(int(t_ime.split("-")[0])  + int(t_ime.split("-")[1]) / 2 ) # 提取开始小时
         birthday = tidb_manager.select_birthday(user_id)
-        bazi_info = tidb_manager.select_baziInfo(user_id)
-        op = options(year=year,month=month,day=day,time=t_ime,n=n)
-        bazi_info_match = baziAnalysis(op)
-        total_score, bb, c, yh, rh, rrh, ez = baziMatch(birthday.year,birthday.month,birthday.day,birthday.hour, year,month,day,t_ime)
-        res = f"本人的八字及其批文：{bazi_info} \n 匹配者的八字及其批文：{bazi_info_match} \n 两者八字匹配得分："
-        # res += f"""命宫：{bb}分
-        #             此项为30分 说明：以东四命与西四命之说来合，如果相合，那么在购房时，应买与自己命宫相合的房子。
-        # 年支同气：{c}分
-        #             此项为20分 说明：如寅卯辰会东方木气，虎兔龙结合的机缘就大于其它属相；巳午未会南方火气，蛇马羊结合的机缘就大于其它属相；申酉戌会西方金气，猴鸡狗结合的机缘就大于其它属相；亥子丑会北方水气，猪鼠牛结合的机缘就大于其它属相。
-        # 月令合：{yh}分
-        #             此项为5分 说明：男女生月相同者互相间也是很有缘份的
-        # 日干相合：{rh}分
-        #             此项为25分 说明：谓日干舒配得所？日干五行相同，一阴一阳的组合男女结合的机缘最大，如甲日干逢乙日干，庚日干逢辛日干之类。
-        # 天干五合：{rrh}分
-        #             此项为5分 说明：其次是天干五合，如甲日干逢己日干，庚日干逢乙日干之类。再次则是比和或相生。
-        # 子女同步：{ez}分
-        #             此项为15分 说明：何谓子女同步？西方的科学家在探索男女结合的奥秘时提出了 " 性染色体论 " ，我们东方人在四柱预测中看头胎子女的性别，男女双方的八字中头胎子女的性别必须一致。
-        # 总分：{total_score}分"""
-        res += f"""
-            1. 命宫相合：{bb}分
-                此项为30分 说明：根据两个八字的命宫是否相合来评分。命宫相合通常意味着两者在性格、命运走向等方面有较好的匹配度。
-
-            2. 年支同气：{c}分
-                此项为20分 说明：考虑两个八字的年支（生肖）是否归属于相同的五行方位。例如，寅卯辰属东方木气，相同方位的年支表示在天性、运势方面可能相辅相成。
-
-            3. 月令相合：{yh}分
-                此项为5分 说明：如果两个八字的月令（出生月的地支）相合或相生，这表示两者在一年中的能量周期上可能存在共鸣。
-
-            4. 日干相合：{rh}分
-                此项为25分 说明：日干代表个体的本质和核心特质。如果两个八字的日干相合或相生，如一阴一阳的组合，这预示着两者在本质上的互补或和谐。
-
-            5. 天干五合：{rrh}分
-                此项为5分 说明：考察两个八字的天干是否形成五行上的相合或相生关系，这关系到两者在五行动态平衡中的互动。
-
-            6. 综合匹配度：{ez}分
-                此项为15分 说明：综合考虑两个八字在各方面的相合程度，包括性格、命运走向、生活习惯等方面的整体协调性。
-
-            7. 总分：{total_score}分        
-        """
+        if matcher_type==1: # 与他人匹配
+            res = baziMatch(birthday.year,birthday.month,birthday.day,birthday.hour, year,month,day,t_ime)
+        else:
+            name = data["name"]
+            res = baziMatch(birthday.year,birthday.month,birthday.day,birthday.hour, year,month,day,t_ime,name=name)
+        logging.info(f"res is:{res}")
         birthday_match = datetime(year, month, day, t_ime)
         tidb_manager.insert_baziInfo(user_id, birthday, res, conversation_id, birthday_match=birthday_match)
         return Response(stream_output(res, user_id), mimetype="text/event-stream")
@@ -814,31 +788,8 @@ def tg_bot_bazi_insert():
         bazi_info = tidb_manager.select_baziInfo(user_id)
         n = name_or_gender
         year_match, month_match, day_match, time_match = map(int, birthday.split('-'))
-        op = options(year=year_match,month=month_match,day=day_match,time=time_match)
-        bazi_info_match = baziAnalysis(op)
-        total_score, bb, c, yh, rh, rrh, ez = baziMatch(birthday_user.year,birthday_user.month,birthday_user.day,birthday_user.hour, year_match, month_match, day_match, time_match)
-        res = f"本人的八字及其批文：{bazi_info} \n 匹配者的八字及其批文：{bazi_info_match} \n 两人八字匹配得分："
-        res += f"""
-            1. 命宫相合：{bb}分
-                此项为30分 说明：根据两个八字的命宫是否相合来评分。命宫相合通常意味着两者在性格、命运走向等方面有较好的匹配度。
-
-            2. 年支同气：{c}分
-                此项为20分 说明：考虑两个八字的年支（生肖）是否归属于相同的五行方位。例如，寅卯辰属东方木气，相同方位的年支表示在天性、运势方面可能相辅相成。
-
-            3. 月令相合：{yh}分
-                此项为5分 说明：如果两个八字的月令（出生月的地支）相合或相生，这表示两者在一年中的能量周期上可能存在共鸣。
-
-            4. 日干相合：{rh}分
-                此项为25分 说明：日干代表个体的本质和核心特质。如果两个八字的日干相合或相生，如一阴一阳的组合，这预示着两者在本质上的互补或和谐。
-
-            5. 天干五合：{rrh}分
-                此项为5分 说明：考察两个八字的天干是否形成五行上的相合或相生关系，这关系到两者在五行动态平衡中的互动。
-
-            6. 综合匹配度：{ez}分
-                此项为15分 说明：综合考虑两个八字在各方面的相合程度，包括性格、命运走向、生活习惯等方面的整体协调性。
-
-            7. 总分：{total_score}分        
-        """
+        res = baziMatch(birthday_user.year,birthday_user.month,birthday_user.day,birthday_user.hour, year_match,month_match,day_match,t_ime_match)
+        logging.info(f"res is:{res}")
         birthday_match = datetime(year_match, month_match, day_match, time_match)
         matcher_id = tidb_manager.insert_other_human(n, birthday_match, user_id)
         bazi_id = tidb_manager.insert_baziInfo(user_id, birthday_user, res, conversation_id, birthday_match=birthday_match, matcher_type=matcher_type, matcher_id=matcher_id)
@@ -846,35 +797,10 @@ def tg_bot_bazi_insert():
         return Response(stream_output(res, user_id), mimetype="text/event-stream")
     elif matcher_type==2: # 配对资产
         birthday_user = tidb_manager.select_birthday(user_id)
-        bazi_info = tidb_manager.select_baziInfo(user_id)
         name = name_or_gender
         year_match, month_match, day_match, time_match = map(int, birthday.split('-'))
-        op = options(year=year_match,month=month_match,day=day_match,time=time_match)
-        bazi_info_match = baziAnalysis(op)
-        total_score, bb, c, yh, rh, rrh, ez = baziMatch(birthday_user.year,birthday_user.month,birthday_user.day,birthday_user.hour, year_match, month_match, day_match, time_match)
-        res = f"本人的八字及其批文：{bazi_info} \n 资产的八字及其批文：{bazi_info_match} \n 两人八字匹配得分："
-        res += f"""
-                1. 核心价值匹配：{bb}分
-                    此项为30分。说明：评估个人与资产的核心价值是否相合。核心价值匹配通常意味着双方在投资理念、价值观和长期发展目标等方面有较好的一致性。
-                
-                2. 投资周期共振：{c}分
-                    此项为20分。说明：分析个人与资产的投资周期是否存在共振，如是否符合相同的投资时段或市场周期。共振的投资周期表示在资产增值和收益实现上可能相辅相成。
-                
-                3. 风险偏好匹配：{yh}分
-                    此项为5分。说明：考察个人与资产在风险承受能力和风险偏好上是否有相合或相补性，这表示双方在投资决策和市场适应上可能存在共鸣。
-                
-                4. 资产配置互补：{rh}分
-                    此项为25分。说明：资产配置代表个人投资组合的多元化和平衡。如果个人与资产的配置能够互补，如稳定收益与高风险高回报的结合，这预示着双方在资产管理和收益优化上的互补或和谐。
-                
-                5. 流动性需求一致：{rrh}分
-                    此项为5分。说明：探讨个人与资产在资金流动性需求上是否形成一致性，这关系到双方在资金周转和资产流动性管理中的协调配合。
-                
-                6. 综合适配度：{ez}分
-                    此项为15分。说明：综合考虑个人与资产在投资目标、风险偏好、资金管理等方面的相合程度，反映双方在整体投资策略和资产管理上的适配性。
-                
-                7. 总分：{total_score}分
-                    综合评分，反映个人与资产在各项指标上的匹配度，为投资决策提供参考依据。
-        """
+        res = baziMatch(birthday_user.year,birthday_user.month,birthday_user.day,birthday_user.hour, year_match,month_match,day_match,t_ime_match,name=name)
+        logging.info(f"res is:{res}")
         birthday_match = datetime(year_match, month_match, day_match, time_match)
         matcher_id = tidb_manager.insert_asset(name, birthday_match,user_id=user_id)
         bazi_id = tidb_manager.insert_baziInfo(user_id, birthday_user, res, conversation_id, birthday_match=birthday_match, matcher_type=matcher_type, matcher_id=matcher_id)
