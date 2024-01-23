@@ -358,7 +358,7 @@ class ChatGPT:
         return conversation_messages
     def _is_own(self,message):
         messages = []
-        messages.append({"role": "user", "content": f"判断一下问题询问的是本人\他人\群体.本人返回0,他人或者群体返回1. 问题:{message}"})
+        messages.append({"role": "user", "content": f"判断一下问题询问的是本人\他人\群体\当前人.本人返回0,他人\群体\当前人返回1. 问题:{message}"})
         rsp = openai.ChatCompletion.create(
             model="gpt-3.5-turbo-1106",
             messages=messages,
@@ -501,7 +501,7 @@ class tg_bot_ChatGPT:
         return conversation_messages
     def _is_own(self,message):
         messages = []
-        messages.append({"role": "user", "content": f"判断一下问题询问的是本人\他人\群体.本人返回0,他人或者群体返回1. 问题:{message}"})
+        messages.append({"role": "user", "content": f"判断一下问题询问的是本人\他人\群体\当前人.本人返回0,他人\群体\当前人返回1. 问题:{message}"})
         rsp = openai.ChatCompletion.create(
             model="gpt-3.5-turbo-1106",
             messages=messages,
