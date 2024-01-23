@@ -450,7 +450,7 @@ class ChatGPT:
             if is_own:
                 res = "请到本人八字聊天中进行详细咨询。"
                 yield res
-                # self.messages.append({"role": "assistant", "content": res})
+                self.messages.append({"role": "assistant", "content": res})
                 # self.writeToTiDB(user_message, res)
                 return 
         rsp = openai.ChatCompletion.create(
@@ -581,8 +581,8 @@ class tg_bot_ChatGPT:
             if is_own:
                 res = "请到本人八字聊天中进行详细咨询。"
                 yield res
-                # self.messages.append({"role": "assistant", "content": res})
-                # self.writeToTiDB(user_message, res)
+                self.messages.append({"role": "assistant", "content": res})
+                self.writeToTiDB(user_message, res)
                 return 
         rsp = openai.ChatCompletion.create(
             model="gpt-3.5-turbo-1106",
