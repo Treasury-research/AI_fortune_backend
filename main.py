@@ -594,7 +594,7 @@ def baziAnalysis_stream():
             return jsonify({"error":"无效的数据格式"}, 400)
         conversation_id = request.get_json().get("conversation_id")
         n = request.get_json().get("n")
-        time = int(int(time.split("-")[0])  + int(time.split("-")[1]) / 2 ) # 提取开始小时
+        time = int(int(time.split("-")[0])/2  + int(time.split("-")[1]) / 2 ) # 提取开始小时
         op = options(year=year,month=month,day=day,time=time,g=g,b=b,n=n,r=r)
         bazi_info = baziAnalysis(op)
         user_id = str(uuid.uuid4())
@@ -637,7 +637,7 @@ def baziMatchRes():
         except:
             return jsonify({"error":"无效的数据格式"}, 400)
         conversation_id = request.get_json().get("conversation_id")
-        t_ime = int(int(t_ime.split("-")[0])  + int(t_ime.split("-")[1]) / 2 ) # 提取开始小时
+        t_ime = int(int(t_ime.split("-")[0])/2  + int(t_ime.split("-")[1]) / 2 ) # 提取开始小时
         birthday = tidb_manager.select_birthday(user_id)
         if matcher_type==1: # 与他人匹配
             res = baziMatch(birthday.year,birthday.month,birthday.day,birthday.hour, year,month,day,t_ime)
