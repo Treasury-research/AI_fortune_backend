@@ -358,15 +358,20 @@ class ChatGPT:
         return conversation_messages
     def _is_own(self,message):
         messages = []
-        messages.append({"role": "user", "content": f"判断一下问题询问的是本人\他人\群体\当前人.本人返回0,他人\群体\当前人返回1. 问题:{message}"})
+        messages.append({"role": "user", "content": f"""
+        你是一个语言专家，我会给你一个语句，请你告诉我这个句子 是指的我本人还是他人 还是指的我和他人。 如果是本人，返回给我1，如果是他人返回2，如果是我和他人 返回3. 如果没有任何主语返回0
+        判断一下问题询问的是本人\他人\群体 
+        返回格式是json, 格式如下:
+        {{
+            "type_":"xxxxx"
+        }}
+        问题:{message}"""})
         rsp = openai.ChatCompletion.create(
             model="gpt-3.5-turbo-1106",
-            messages=messages,
-            max_tokens=4
+            messages=messages
         )
-        res = rsp.choices[0]["message"]["content"]
         logging.info(f"问题类型:{res}")
-        if '0' in res or '本' in res or '本人' in res:
+        if '1' in res:
             return True
         else:
             return False
@@ -445,8 +450,8 @@ class ChatGPT:
             if is_own:
                 res = "请到本人八字聊天中进行详细咨询。"
                 yield res
-                self.messages.append({"role": "assistant", "content": res})
-                self.writeToTiDB(user_message, res)
+                # self.messages.append({"role": "assistant", "content": res})
+                # self.writeToTiDB(user_message, res)
                 return 
         rsp = openai.ChatCompletion.create(
             model="gpt-3.5-turbo-1106",
@@ -501,15 +506,20 @@ class tg_bot_ChatGPT:
         return conversation_messages
     def _is_own(self,message):
         messages = []
-        messages.append({"role": "user", "content": f"判断一下问题询问的是本人\他人\群体\当前人.本人返回0,他人\群体\当前人返回1. 问题:{message}"})
+        messages.append({"role": "user", "content": f"""
+        你是一个语言专家，我会给你一个语句，请你告诉我这个句子 是指的我本人还是他人 还是指的我和他人。 如果是本人，返回给我1，如果是他人返回2，如果是我和他人 返回3. 如果没有任何主语返回0
+        判断一下问题询问的是本人\他人\群体 
+        返回格式是json, 格式如下:
+        {{
+            "type_":"xxxxx"
+        }}
+        问题:{message}"""})
         rsp = openai.ChatCompletion.create(
             model="gpt-3.5-turbo-1106",
-            messages=messages,
-            max_tokens=4
+            messages=messages
         )
-        res = rsp.choices[0]["message"]["content"]
         logging.info(f"问题类型:{res}")
-        if '0' in res or '本' in res or '本人' in res:
+        if '1' in res:
             return True
         else:
             return False
@@ -571,8 +581,8 @@ class tg_bot_ChatGPT:
             if is_own:
                 res = "请到本人八字聊天中进行详细咨询。"
                 yield res
-                self.messages.append({"role": "assistant", "content": res})
-                self.writeToTiDB(user_message, res)
+                # self.messages.append({"role": "assistant", "content": res})
+                # self.writeToTiDB(user_message, res)
                 return 
         rsp = openai.ChatCompletion.create(
             model="gpt-3.5-turbo-1106",
