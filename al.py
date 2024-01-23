@@ -405,7 +405,7 @@ def baziMatch(year,month,day,t_ime,year_a,month_a,day_a,t_ime_a,name=None,coin_d
     #     # print(f"他人信息：")
     #     # print(f"出生地时间（公历）：{year_a}年 {month_a}月 {day_a}日 {t_ime_a}时")
     # # print(f"十神：  {ygs_a}   {mgs_a}   日主   {tgs_a}")
-        print("胎元：")
+        # print("胎元：")
         print(f"乾造    {a[20+yg_a]+a[30+yz_a]}   {a[20+mg_a]+a[30+mz_a]}   {a[20+dg_a]+a[30+dz_a]}   {a[20+tg_a]+a[30+tz_a]}")
         print(f"支十神：{a[yzs_a]}   {a[mzs_a]}   {a[dzs_a]}   {a[tzs_a]}")
         print("十神")
@@ -434,24 +434,26 @@ def baziMatch(year,month,day,t_ime,year_a,month_a,day_a,t_ime_a,name=None,coin_d
     # Print the years
         print("   ".join(yearList))
         print ('')
-        print ('出生' + str(yun.getStartYear()) + '年' + str(yun.getStartMonth()) + '个月' + str(yun.getStartDay()) + '天后起运')
-        print ('阳历' + yun.getStartSolar().toYmd() + '后起运')
-
+        # print ('出生' + str(yun.getStartYear()) + '年' + str(yun.getStartMonth()) + '个月' + str(yun.getStartDay()) + '天后起运')
+        # print ('阳历' + yun.getStartSolar().toYmd() + '后起运')
+        if coin_data:
+            coin_quote = coin_data['quote']['USD']
+            # 打印比特币信息
+            print(f"名称: {coin_data['name']} (符号: {coin_data['symbol']})")
+            print(f"价格: ${coin_quote['price']:.2f}")
+            print(f"24小时交易量: ${coin_quote['volume_24h']:.2f}")
+            print(f"市值: ${coin_quote['market_cap']:.2f}")
+            print(f"1小时内价格变化百分比: {coin_quote['percent_change_1h']:.2f}%")
+            print(f"24小时内价格变化百分比: {coin_quote['percent_change_24h']:.2f}%")
+            print(f"7天内价格变化百分比: {coin_quote['percent_change_7d']:.2f}%")
+            print(f"30天内价格变化百分比: {coin_quote['percent_change_30d']:.2f}%")
+            print(f"60天内价格变化百分比: {coin_quote['percent_change_60d']:.2f}%")
+            print(f"90天内价格变化百分比: {coin_quote['percent_change_90d']:.2f}%")
     print("-"*120)
 
-    if coin_data:
-        coin_quote = coin_data['quote']['USD']
-        # 打印比特币信息
-        print(f"名称: {coin_data['name']} (符号: {coin_data['symbol']})")
-        print(f"价格: ${coin_quote['price']:.2f}")
-        print(f"24小时交易量: ${coin_quote['volume_24h']:.2f}")
-        print(f"市值: ${coin_quote['market_cap']:.2f}")
-        print(f"1小时内价格变化百分比: {coin_quote['percent_change_1h']:.2f}%")
-        print(f"24小时内价格变化百分比: {coin_quote['percent_change_24h']:.2f}%")
-        print(f"7天内价格变化百分比: {coin_quote['percent_change_7d']:.2f}%")
-        print(f"30天内价格变化百分比: {coin_quote['percent_change_30d']:.2f}%")
-        print(f"60天内价格变化百分比: {coin_quote['percent_change_60d']:.2f}%")
-        print(f"90天内价格变化百分比: {coin_quote['percent_change_90d']:.2f}%")
+
+
+
     print("匹配信息：")
     if name:
         print(f"""
