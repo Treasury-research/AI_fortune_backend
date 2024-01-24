@@ -17,7 +17,7 @@ def capture_print(func):
 
 
 @capture_print
-def baziMatch(year,month,day,t_ime,year_a,month_a,day_a,t_ime_a,name=None,coin_data=None):
+def baziMatch(year,month,day,t_ime,year_a,month_a,day_a,t_ime_a,name=None,coin_data=None,own=None):
     def safe_convert(x):
         r = 100 - x
         s = r % 9
@@ -368,7 +368,7 @@ def baziMatch(year,month,day,t_ime,year_a,month_a,day_a,t_ime_a,name=None,coin_d
         yearList.append(str(daYun.getStartYear()))
         ageList.append(str(daYun.getStartAge()) + "岁")
     print("-"*120)
-    if name is None:
+    if name is None or own==True:
         print(f"本人信息：")
         print(f"出生地时间（公历）：{year}年 {month}月 {day}日 {t_ime}时")
         print("胎元：")

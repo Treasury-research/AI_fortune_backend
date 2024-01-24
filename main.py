@@ -332,11 +332,12 @@ class TiDBManager:
                 return False
 
 class ChatGPT:
-    def __init__(self, conversation_id, match=None):
+    def __init__(self, conversation_id, match=None, matcher_type=None):
         self.conversation_id = conversation_id
         self.messages = []
         self.tidb_manager = TiDBManager()
         self.match=match
+        self.matcher_type = matcher_type
         # self.user_id = self.tidb_manager.get_user_id(self.conversation_id)
         # get the history messages
         if match:
@@ -362,23 +363,46 @@ class ChatGPT:
             # update total tokens 更新总token数
             total_tokens -= self._num_tokens_from_string(removed_message) 
         return conversation_messages
-    def _is_own(self,message):
+        
+    def _is_own(self,message,asset=None):
         messages = []
-        messages.append({"role": "user", "content": f"""
-        你是一个语言专家，我会给你一个语句，请你告诉我这个句子 是指的我本人,还是他人,还是指的我和他人。 如果是本人，返回给我1，如果是他人返回2，如果是我和他人 返回3. 如果没有任何主语返回0
-        另外,当前人属于他人.
-        如:
-        1."我问你这个人的八字，上文有提到" 应该返回2,他人,因为问的是这个人,属于当前人,即为他人
-        2."当前人的八字已经给你了，上面有说，你不知道?" 应该返回2,他人,因为问的是当前人,即为他人
-        3."你知道我的八字吗?" 应该返回1,因为询问的是我的八字,即为本人
-        4."我想问你我两的关系如何" 应该返回 3,我和他人,因为问的是我两
-        5."这是什么东西?" 应该返回0,因为没有任何主语
-        判断一下问题询问的是本人\他人\群体 
-        返回格式是json, 格式如下:
-        {{
-            "type_":"xxxxx"
-        }}
-        问题:{message}"""})
+        if asset:
+            messages.append({"role": "user", "content": f"""
+            你是一个语言专家，我会给你一个语句，请你告诉我这个句子 是指的我本人,还是资产,还是指的我和资产。 如果是本人，返回给我1，如果是资产返回2，如果是我和资产 返回3. 如果没有任何主语返回0
+            另外,当前人属于资产。他人也属于资产。
+            如:
+            1."我问你这个人的八字，上文有提到" 应该返回2,资产,因为问的是这个人,属于当前人,即为资产
+            2."我应该什么适合买这个币" 应该返回3，问我跟资产之间投资关系，属于我和资产 
+            3."你知道我的八字吗?" 应该返回1,因为询问的是我的八字,即为本人
+            4."我想问你我两的关系如何" 应该返回 3,我和资产,因为问的是我两
+            5."这是什么东西?" 应该返回0,因为没有任何主语
+            6."我可以适合投资这个资产吗？" 应该返回3，问我跟资产之间投资关系，属于我和资产 
+            7."我应该在什么时候买这个币" 应该返回3，出现了'我'和'币'，币种属于资产，所以属于我和资产
+            8."我什么时候投资这个BTC/ETH好？" 应该返回3，问我和BTC/ETH之间的投资关系，BTC/ETH属于币种资产，所以属于我和资产 
+            9."币种的八字是什么呀？币种的运势怎么样？" 应该返回2，只问到币种，即资产，应该返回2
+            10."买这个币的最佳人群" 应该返回2，属于询问币种的适应范围，即资产
+            11."我最近适合投资嘛？" 应该返回1，属于询问自己八字推理出的运势
+            返回格式是json, 格式如下:
+            {{
+                "type_":"xxxxx"
+            }}
+            问题:{message}"""})
+        else:
+            messages.append({"role": "user", "content": f"""
+            你是一个语言专家，我会给你一个语句，请你告诉我这个句子 是指的我本人,还是他人,还是指的我和他人。 如果是本人，返回给我1，如果是他人返回2，如果是我和他人 返回3. 如果没有任何主语返回0
+            另外,当前人属于他人.
+            如:
+            1."我问你这个人的八字，上文有提到" 应该返回2,他人,因为问的是这个人,属于当前人,即为他人
+            2."当前人的八字已经给你了，上面有说，你不知道?" 应该返回2,他人,因为问的是当前人,即为他人
+            3."你知道我的八字吗?" 应该返回1,因为询问的是我的八字,即为本人
+            4."我想问你我两的关系如何" 应该返回 3,我和他人,因为问的是我两
+            5."这是什么东西?" 应该返回0,因为没有任何主语
+            判断一下问题询问的是本人\他人\群体 
+            返回格式是json, 格式如下:
+            {{
+                "type_":"xxxxx"
+            }}
+            问题:{message}"""})
         rsp = openai.ChatCompletion.create(
             model="gpt-3.5-turbo-1106",
             messages=messages
@@ -389,6 +413,8 @@ class ChatGPT:
             return True
         else:
             return False
+
+    
     def load_history(self):
         # if the history message exist in , concat it and compute the token lens
         bazi_info = self.tidb_manager.select_baziInfo(conversation_id=self.conversation_id)
@@ -426,14 +452,24 @@ class ChatGPT:
         bazi_info = self.tidb_manager.select_baziInfo(conversation_id=self.conversation_id)
         conversation_messages = self.tidb_manager.get_conversation(conversation_id=self.conversation_id)
         # 如果对话中存在未重置的记录，那么优先使用
-        # content 就是一个基本的prompt
-        content = f"""我想你作为一个命理占卜分析师。我将给你如下信息，他人/配对者/配对人 的生辰八字，还有八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
-        注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
-        你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
-        
+        if self.matcher_type==2: # 用于asset
+            # content 就是一个基本的prompt
+            content = f"""我想你作为一个命理占卜分析师。我将给你如下信息，他人/配对者/配对人 的生辰八字，还有八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
+            注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
+            你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
+            
 
-        他人/配对者/配对人的信息：{bazi_info}
-        """
+            他人/配对者/配对人的信息：{bazi_info}
+            """
+        else:
+            # content 就是一个基本的prompt
+            content = f"""我想你作为一个个人与资产占卜分析师。我将给你如下信息， 货币资产的基本信息，还有用户和资产八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
+            注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
+            你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
+            
+
+            货币/资产的信息：{bazi_info}
+            """
         if conversation_messages:
             conversations = self._trim_conversations(content, list(conversation_messages))
             # if the first item is not a tuple, that is bazi_info
@@ -460,7 +496,10 @@ class ChatGPT:
         # print(self.messages)
         # Send the entire conversation history to GPT
         if self.match:
-            is_own = self._is_own(user_message)
+            if self.matcher_type==2:
+                is_own = self._is_own(user_message,asset=True)
+            else:
+                is_own = self._is_own(user_message)
             if is_own:
                 res = "请到本人八字聊天中进行详细咨询。"
                 yield res
@@ -650,31 +689,29 @@ def stream_output(message, user_id=None):
 
 def get_coin_data(name):
     tidb_manager = TiDBManager()
-    try:
-        res = tidb_manager.select_coin_id(name = name)
-        import requests
-        base_url = 'https://pro-api.coinmarketcap.com'
-        # Endpoint for getting cryptocurrency quotes
-        endpoint = '/v2/cryptocurrency/quotes/latest'
-        # Parameters
-        params = {
-            'id': str(res),  # Replace with the actual ID you want to query
-        }
+    res = tidb_manager.select_coin_id(name = name)
+    import requests
+    base_url = 'https://pro-api.coinmarketcap.com'
+    # Endpoint for getting cryptocurrency quotes
+    endpoint = '/v2/cryptocurrency/quotes/latest'
+    # Parameters
+    params = {
+        'id': str(res),  # Replace with the actual ID you want to query
+    }
 
-        # Headers
-        headers = {
-            'Accepts': 'application/json',
-            'X-CMC_PRO_API_KEY': os.environ["CMC_API_KEY"],
-        }
+    # Headers
+    headers = {
+        'Accepts': 'application/json',
+        'X-CMC_PRO_API_KEY': os.environ["CMC_API_KEY"],
+    }
 
-        # Make the request
-        response = requests.get(base_url + endpoint, headers=headers, params=params)
-        data = response.json()
-        # print(data)
-        coin_data = data['data'][str(res)]
-        return coin_data
-    except:
-        return None
+    # Make the request
+    response = requests.get(base_url + endpoint, headers=headers, params=params)
+    data = response.json()
+    # print(data)
+    coin_data = data['data'][str(res)]
+    return coin_data
+
 @app.route('/api/baziAnalysis',methods=['POST','GET'])
 def baziAnalysis_stream():
     year = '2000'
@@ -756,7 +793,7 @@ def baziMatchRes():
             coin_data = get_coin_data(name)
             logging.info(f"coin data is {coin_data}")
             res = baziMatch(birthday.year,birthday.month,birthday.day,birthday.hour, year,month,day,t_ime,name=name,coin_data=coin_data)
-            db_res = res
+            db_res = baziMatch(birthday.year,birthday.month,birthday.day,birthday.hour, year,month,day,t_ime,name=name,coin_data=coin_data,own=True)
         logging.info(f"res is:{res}")
         birthday_match = datetime(year, month, day, t_ime)
         tidb_manager.insert_baziInfo(user_id, birthday, db_res, conversation_id, birthday_match=birthday_match)
@@ -778,9 +815,9 @@ def chat_bazi_match():
     data = request.get_json()
     conversation_id = data.get('conversation_id')
     user_message = data.get('message')
-
+    matcher_type = data.get('matcher_type')
     # Initialize or retrieve existing ChatGPT instance for the user
-    chat = ChatGPT(conversation_id, match=True)
+    chat = ChatGPT(conversation_id, match=True, matcher_type=matcher_type)
     return Response(chat.ask_gpt_stream(user_message), mimetype="text/event-stream")
 
 @app.route('/api/reset_chat', methods=['POST'])
