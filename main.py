@@ -1107,7 +1107,6 @@ def tg_bot_bazi_info():
         return Response(stream_output(bazi_info, user_id), mimetype="text/event-stream")
 
 
-
             
 @app.route('/test')
 def test():
@@ -1116,44 +1115,3 @@ def test():
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000, debug=True)
-    # year = '2002'
-    # month = '2'
-    # day = '1'
-    # time = '8'
-    # g = True
-    # b = False
-    # n = False
-    # r = False
-    # op = options(year=year,month=month,day=day,time=time,g=g,b=b,n=n,r=r)
-    # res= baziAnalysis(op)
-    # def _num_tokens_from_string(string: str) -> int:
-    #     """Returns the number of tokens in a text string."""
-    #     encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
-    #     tokens=encoding.encode(string)
-    #     return len(tokens)
-    # print(_num_tokens_from_string(res))
-    # print(res)
-    # conversation_id = "349ed47f-6983-4426-9336-12e2307a817f"
-    # user_id = "4da7f06e-a8c4-43a2-9f05-53480473faf9"
-    # tidb_manager = TiDBManager()
-    # messages = tidb_manager.get_conversation(conversation_id)
-    # birthday = tidb_manager.select_birthday(user_id)
-    # print(birthday.year)
-    # baziInfo = tidb_manager.select_baziInfo(user_id)
-    # print(baziInfo)
-    # print(type(messages))
-    # print(messages)
-    # print(messages.insert(0,111))
-    # user_message = "我的生日是2001年5月5号12点，给出我的生辰八字。"
-    # messages.append({"role": "user", "content": user_message})
-    # # print(self.messages)
-    # # Send the entire conversation history to GPT
-    # rsp = openai.ChatCompletion.create(
-    #     model="gpt-3.5-turbo-16k",
-    #     messages=messages
-    # )
-    # answer = rsp.get("choices")[0]["message"]["content"]
-
-    # # Add GPT's reply to conversation history
-    # messages.append({"role": "assistant", "content": answer})
-    # tidb_manager.insert_conversation(conversation_id, messages)
