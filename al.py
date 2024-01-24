@@ -436,7 +436,7 @@ def baziMatch(year,month,day,t_ime,year_a,month_a,day_a,t_ime_a,name=None,coin_d
         print ('')
         # print ('出生' + str(yun.getStartYear()) + '年' + str(yun.getStartMonth()) + '个月' + str(yun.getStartDay()) + '天后起运')
         # print ('阳历' + yun.getStartSolar().toYmd() + '后起运')
-        if coin_data:
+        if coin_data and own==True:
             coin_quote = coin_data['quote']['USD']
             # 打印比特币信息
             print(f"名称: {coin_data['name']} (符号: {coin_data['symbol']})")

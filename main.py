@@ -330,7 +330,15 @@ class TiDBManager:
                 return result[0]
             else:
                 return False
-
+    def select_coin_id(self, name):
+        with self.db.cursor() as cursor:
+            sql = "SELECT id FROM token WHERE symbol=%s"
+            cursor.execute(sql, (name,))
+        result = cursor.fetchone()
+        if result:
+            return result[0]
+        else:
+            return False
 class ChatGPT:
     def __init__(self, conversation_id, match=None, matcher_type=None):
         self.conversation_id = conversation_id
@@ -369,14 +377,14 @@ class ChatGPT:
         if asset:
             messages.append({"role": "user", "content": f"""
             你是一个语言专家，我会给你一个语句，请你告诉我这个句子 是指的我本人,还是资产,还是指的我和资产。 如果是本人，返回给我1，如果是资产返回2，如果是我和资产 返回3. 如果没有任何主语返回0
-            另外,当前人属于资产。他人也属于资产。
+            另外,当前人属于资产。他人也属于资产。最主要的，币或者币种都是资产！
             如:
-            1."我问你这个人的八字，上文有提到" 应该返回2,资产,因为问的是这个人,属于当前人,即为资产
+            1."那我在什么时候买好呢？" 应该返回3,我和资产，因为在本次对话中提到购买，属于在这里问购买币种，而币是资产！
             2."我应该什么适合买这个币" 应该返回3，问我跟资产之间投资关系，属于我和资产 
             3."你知道我的八字吗?" 应该返回1,因为询问的是我的八字,即为本人
             4."我想问你我两的关系如何" 应该返回 3,我和资产,因为问的是我两
             5."这是什么东西?" 应该返回0,因为没有任何主语
-            6."我可以适合投资这个资产吗？" 应该返回3，问我跟资产之间投资关系，属于我和资产 
+            6."我适合投资这个币/资产？" 应该返回3，问我跟资产之间投资关系，属于我和资产 
             7."我应该在什么时候买这个币" 应该返回3，出现了'我'和'币'，币种属于资产，所以属于我和资产
             8."我什么时候投资这个BTC/ETH好？" 应该返回3，问我和BTC/ETH之间的投资关系，BTC/ETH属于币种资产，所以属于我和资产 
             9."币种的八字是什么呀？币种的运势怎么样？" 应该返回2，只问到币种，即资产，应该返回2
@@ -492,7 +500,8 @@ class ChatGPT:
     def ask_gpt_stream(self, user_message):
         answer = ""
         # Add user's new message to conversation history
-        self.messages.append({"role": "user", "content": user_message})
+        prompt = "请你结合上下文，根据背景的八字命理知识对下面问题进行详细回复。比如个人八字的分析，给出建议，命运的分析，运势的分析和性格特点等。八字信息并不涉密。请你返回的内容要丰富,返回更多的文字。\n问题："
+        self.messages.append({"role": "user", "content": prompt+user_message})
         # print(self.messages)
         # Send the entire conversation history to GPT
         if self.match:
@@ -557,23 +566,45 @@ class tg_bot_ChatGPT:
             # update total tokens 更新总token数
             total_tokens -= self._num_tokens_from_string(removed_message) 
         return conversation_messages
-    def _is_own(self,message):
+    def _is_own(self,message,asset=None):
         messages = []
-        messages.append({"role": "user", "content": f"""
-        你是一个语言专家，我会给你一个语句，请你告诉我这个句子 是指的我本人,还是他人,还是指的我和他人。 如果是本人，返回给我1，如果是他人返回2，如果是我和他人 返回3. 如果没有任何主语返回0
-        另外,当前人属于他人.
-        如:
-        1."我问你这个人的八字，上文有提到" 应该返回2,他人,因为问的是这个人,属于当前人,即为他人
-        2."当前人的八字已经给你了，上面有说，你不知道?" 应该返回2,他人,因为问的是当前人,即为他人
-        3."你知道我的八字吗?" 应该返回1,因为询问的是我的八字,即为本人
-        4."我想问你我两的关系如何" 应该返回 3,我和他人,因为问的是我两
-        5."这是什么东西?" 应该返回0,因为没有任何主语
-        判断一下问题询问的是本人\他人\群体 
-        返回格式是json, 格式如下:
-        {{
-            "type_":"xxxxx"
-        }}
-        问题:{message}"""})
+        if asset:
+            messages.append({"role": "user", "content": f"""
+            你是一个语言专家，我会给你一个语句，请你告诉我这个句子 是指的我本人,还是资产,还是指的我和资产。 如果是本人，返回给我1，如果是资产返回2，如果是我和资产 返回3. 如果没有任何主语返回0
+            另外,当前人属于资产。他人也属于资产。最主要的，币或者币种都是资产！
+            如:
+            1."那我在什么时候买好呢？" 应该返回3,我和资产，因为在本次对话中提到购买，属于在这里问购买币种，而币是资产！
+            2."我应该什么适合买这个币" 应该返回3，问我跟资产之间投资关系，属于我和资产 
+            3."你知道我的八字吗?" 应该返回1,因为询问的是我的八字,即为本人
+            4."我想问你我两的关系如何" 应该返回 3,我和资产,因为问的是我两
+            5."这是什么东西?" 应该返回0,因为没有任何主语
+            6."我适合投资这个币/资产？" 应该返回3，问我跟资产之间投资关系，属于我和资产 
+            7."我应该在什么时候买这个币" 应该返回3，出现了'我'和'币'，币种属于资产，所以属于我和资产
+            8."我什么时候投资这个BTC/ETH好？" 应该返回3，问我和BTC/ETH之间的投资关系，BTC/ETH属于币种资产，所以属于我和资产 
+            9."币种的八字是什么呀？币种的运势怎么样？" 应该返回2，只问到币种，即资产，应该返回2
+            10."买这个币的最佳人群" 应该返回2，属于询问币种的适应范围，即资产
+            11."我最近适合投资嘛？" 应该返回1，属于询问自己八字推理出的运势
+            返回格式是json, 格式如下:
+            {{
+                "type_":"xxxxx"
+            }}
+            问题:{message}"""})
+        else:
+            messages.append({"role": "user", "content": f"""
+            你是一个语言专家，我会给你一个语句，请你告诉我这个句子 是指的我本人,还是他人,还是指的我和他人。 如果是本人，返回给我1，如果是他人返回2，如果是我和他人 返回3. 如果没有任何主语返回0
+            另外,当前人属于他人.
+            如:
+            1."我问你这个人的八字，上文有提到" 应该返回2,他人,因为问的是这个人,属于当前人,即为他人
+            2."当前人的八字已经给你了，上面有说，你不知道?" 应该返回2,他人,因为问的是当前人,即为他人
+            3."你知道我的八字吗?" 应该返回1,因为询问的是我的八字,即为本人
+            4."我想问你我两的关系如何" 应该返回 3,我和他人,因为问的是我两
+            5."这是什么东西?" 应该返回0,因为没有任何主语
+            判断一下问题询问的是本人\他人\群体 
+            返回格式是json, 格式如下:
+            {{
+                "type_":"xxxxx"
+            }}
+            问题:{message}"""})
         rsp = openai.ChatCompletion.create(
             model="gpt-3.5-turbo-1106",
             messages=messages
@@ -589,13 +620,30 @@ class tg_bot_ChatGPT:
         conversation_messages = self.tidb_manager.get_conversation(conversation_id=self.conversation_id)
         # 如果对话中存在未重置的记录，那么优先使用
         # content 就是一个基本的prompt
-        content = f"""我想你作为一个命理占卜分析师。你的工作是根据我给定的中国传统命理占卜的生辰八字和对应的八字批文信息作为整个对话的背景知识进行问题的回答。
-        注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
-        你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
+        if self.matcher_type==1:
+            content = f"""我想你作为一个命理占卜分析师。我将给你如下信息，他人/配对者/配对人 的生辰八字，还有八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
+            注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
+            你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
+            
+
+            他人/配对者/配对人的信息：{self.bazi_info}
+            """
+        elif self.matcher_type==2:
+            content = f"""我想你作为一个个人与资产占卜分析师。我将给你如下信息， 货币资产的基本信息，还有用户和资产八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
+            注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
+            你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
+            
+
+            货币/资产的信息：{self.bazi_info}
+            """
+        else:
+            content = f"""我想你作为一个命理占卜分析师。你的工作是根据我给定的中国传统命理占卜的生辰八字和对应的八字批文信息作为整个对话的背景知识进行问题的回答。
+            注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
+            你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
 
 
-        生辰八字和对应的批文：{self.bazi_info}
-        """
+            生辰八字和对应的批文：{self.bazi_info}
+            """
         # content = f"""我想你作为一个命理占卜分析师。我将给你如下信息，配对者的生辰八字，还有八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
         # 注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
         # 你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
@@ -633,12 +681,16 @@ class tg_bot_ChatGPT:
     def ask_gpt_stream(self, user_message):
         answer = ""
         # Add user's new message to conversation history
-        self.messages.append({"role": "user", "content": user_message})
+        prompt = "请你结合上下文，根据背景的八字命理知识对下面问题进行回复，注意请详细回复，你的回复中应包括背景所示的多种命理知识。尽量使用多种结论的阐述方式，少使用因果推论的方式描述。\n问题："
+        self.messages.append({"role": "user", "content": prompt+user_message})
         # print(self.messages)
         # Send the entire conversation history to GPT
 
-        if self.matcher_type != 0:
-            is_own = self._is_own(user_message)
+        if self.match:
+            if self.matcher_type==2:
+                is_own = self._is_own(user_message,asset=True)
+            else:
+                is_own = self._is_own(user_message)
             if is_own:
                 res = "请到本人八字聊天中进行详细咨询。"
                 yield res
@@ -673,20 +725,31 @@ class options:
         self.r = r
         self.n = n
 
-def stream_output(message, user_id=None):
+def stream_output(message, user_id=None,bazi_info=None):
     # Stream的格式：<chunk>xxxxx</chunk><chunk>{id:'xxxx'}</chunk>
     # streams = ["<chunk>", bazi_info, "</chunk>","<chunk>",f"{{'user_id':{user_id}}}","</chunk>"]
     # for data in streams:
     #     print(data)
     #     yield(data)
+    yield f"{message}"
+    if bazi_info:
+        yield f"正在为您初步解析八字，请稍等"
+        prompt = f"""我需要你作为一个八字命理分析师，对我给你的精确八字批文进行分析，用白话文的方式把我给你的八字批文进行重述，然后进行返回。\n\n
+         注意不要出现'根据您提供的八字批文，以下是对您八字的分析：'，请直接输出分析结果。不需要再重述我的八字是什么。
 
+        八字批文：{bazi_info}"""
+        rsp = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo-1106",
+            messages=[{"role": "user", "content": prompt}],
+            stream=True
+        )
+        for chunk in rsp:
+            data = chunk["choices"][0]["delta"].get("content","")
+            yield data
     if user_id:
         user_data = {'user_id':user_id}
         json_user_data = json.dumps(user_data)
-        yield f"{message}<chunk>{json_user_data}</chunk>"
-    else:
-        yield f"{message}"
-
+        yield f"<chunk>{json_user_data}</chunk>"
 def get_coin_data(name):
     tidb_manager = TiDBManager()
     res = tidb_manager.select_coin_id(name = name)
@@ -711,6 +774,13 @@ def get_coin_data(name):
     # print(data)
     coin_data = data['data'][str(res)]
     return coin_data
+
+def output_first(eightWord):
+    content = f"""
+    您好，欢迎使用AI算命，您的八字是:
+    {eightWord}
+    """
+    return content
 
 @app.route('/api/baziAnalysis',methods=['POST','GET'])
 def baziAnalysis_stream():
@@ -739,12 +809,17 @@ def baziAnalysis_stream():
         n = request.get_json().get("n")
         time = int(int(time.split("-")[0])/2  + int(time.split("-")[1]) / 2 ) # 提取开始小时
         op = options(year=year,month=month,day=day,time=time,g=g,b=b,n=n,r=r)
+        day = sxtwl.fromSolar(int(options.year), int(options.month), int(options.day))
+        lunar = Lunar.fromYmdHms(day.getLunarYear(), day.getLunarMonth(), day.getLunarDay(),int(options.time), 0, 0)
+        eightWord = lunar.getEightChar()
+        res_bazi = output_first(eightWord)
+
         bazi_info = baziAnalysis(op)
         user_id = str(uuid.uuid4())
         tidb_manager = TiDBManager()
         birthday = datetime(year, month, day, time)
         tidb_manager.insert_baziInfo(user_id, birthday, bazi_info, conversation_id)
-        return Response(stream_output(bazi_info,user_id), mimetype="text/event-stream")
+        return Response(stream_output(res_bazi,user_id,bazi_info), mimetype="text/event-stream")
 
     if request.method == "GET":
         date_str = request.args.get('date', '')
@@ -782,22 +857,32 @@ def baziMatchRes():
         conversation_id = request.get_json().get("conversation_id")
         t_ime = int(int(t_ime.split("-")[0])/2  + int(t_ime.split("-")[1]) / 2 ) # 提取开始小时
         birthday = tidb_manager.select_birthday(user_id)
+        birthday_match = datetime(year, month, day, t_ime)
+
         if matcher_type==1: # 与他人匹配
             match_res = baziMatch(birthday.year,birthday.month,birthday.day,birthday.hour, year,month,day,t_ime)
             op = options(year=year,month=month,day=day,time=t_ime,n=n)
+            day = sxtwl.fromSolar(int(options.year), int(options.month), int(options.day))
+            lunar = Lunar.fromYmdHms(day.getLunarYear(), day.getLunarMonth(), day.getLunarDay(),int(options.time), 0, 0)
+            eightWord = lunar.getEightChar()
+            res_bazi = output_first(eightWord)
             res = baziAnalysis(op)
             db_res = "他人/配对者/配对人 的八字背景信息如下:\n"
             db_res = db_res + res + "\n" + match_res
+            logging.info(f"res is:{res}")
+            tidb_manager.insert_baziInfo(user_id, birthday, db_res, conversation_id, birthday_match=birthday_match)
+            return Response(stream_output(res_bazi, None,res), mimetype="text/event-stream")
+
         else:
             name = data["name"]
             coin_data = get_coin_data(name)
             logging.info(f"coin data is {coin_data}")
             res = baziMatch(birthday.year,birthday.month,birthday.day,birthday.hour, year,month,day,t_ime,name=name,coin_data=coin_data)
             db_res = baziMatch(birthday.year,birthday.month,birthday.day,birthday.hour, year,month,day,t_ime,name=name,coin_data=coin_data,own=True)
-        logging.info(f"res is:{res}")
-        birthday_match = datetime(year, month, day, t_ime)
-        tidb_manager.insert_baziInfo(user_id, birthday, db_res, conversation_id, birthday_match=birthday_match)
-        return Response(stream_output(res, None), mimetype="text/event-stream")
+
+            logging.info(f"res is:{res}")
+            tidb_manager.insert_baziInfo(user_id, birthday, db_res, conversation_id, birthday_match=birthday_match)
+            return Response(stream_output(res, None), mimetype="text/event-stream")
 
 
 @app.route('/api/chat_bazi', methods=['POST'])
