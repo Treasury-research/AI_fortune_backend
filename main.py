@@ -649,8 +649,8 @@ def stream_output(message, user_id=None):
         yield f"{message}"
 
 def get_coin_data(name):
+    tidb_manager = TiDBManager()
     try:
-        tidb_manager = TiDBManager()
         res = tidb_manager.select_coin_id(name = name)
         import requests
         base_url = 'https://pro-api.coinmarketcap.com'
@@ -658,7 +658,7 @@ def get_coin_data(name):
         endpoint = '/v2/cryptocurrency/quotes/latest'
         # Parameters
         params = {
-            'id': res,  # Replace with the actual ID you want to query
+            'id': str(res),  # Replace with the actual ID you want to query
         }
 
         # Headers
@@ -670,7 +670,7 @@ def get_coin_data(name):
         # Make the request
         response = requests.get(base_url + endpoint, headers=headers, params=params)
         data = response.json()
-    # print(data)
+        # print(data)
         coin_data = data['data'][str(res)]
         return coin_data
     except:

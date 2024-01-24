@@ -430,7 +430,7 @@ def baziMatch(year,month,day,t_ime,year_a,month_a,day_a,t_ime_a,name=None,coin_d
             yearList.append(str(daYun.getStartYear()))
             ageList.append(str(daYun.getStartAge()))
 
-        print("     ".join(ageList))
+        # print("     ".join(ageList))
     # Print the years
         print("   ".join(yearList))
         print ('')
