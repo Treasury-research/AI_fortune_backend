@@ -1,4 +1,5 @@
 import openai
+import sxtwl
 import json
 import os
 import time
@@ -18,6 +19,7 @@ import tiktoken
 import logging
 from bazi import baziAnalysis
 from al import baziMatch
+from lunar_python import Lunar, Solar
 
 # 假设你的DATABASE_URL如下所示：
 # 'mysql://user:password@host:port/database'
@@ -360,16 +362,17 @@ class ChatGPT:
         return len(tokens)
     def _trim_conversations(self, bazi_info, conversation_messages, max_tokens=16000):
         # add the bazi_info as background in index 0
-        conversation_messages.insert(0,bazi_info)
         total_tokens = sum(self._num_tokens_from_string(str(message)) for message in conversation_messages)
         # if total tokens exceeds the max_tokens, delete the oldest message
+        bazi_token = self._num_tokens_from_string(bazi_info)
         # 如果总token数超过限制，则删除旧消息 
         logging.info(f"The number of summary is: {total_tokens}")
-        while total_tokens > max_tokens:
+        while total_tokens-bazi_token > max_tokens:
             # delete the first list item 删除列表的第一个元素
             removed_message = conversation_messages.pop(0)  
             # update total tokens 更新总token数
             total_tokens -= self._num_tokens_from_string(removed_message) 
+        conversation_messages.insert(0,bazi_info)
         return conversation_messages
         
     def _is_own(self,message,asset=None):
@@ -500,7 +503,7 @@ class ChatGPT:
     def ask_gpt_stream(self, user_message):
         answer = ""
         # Add user's new message to conversation history
-        prompt = "请你结合上下文，根据背景的八字命理知识对下面问题进行详细回复。比如个人八字的分析，给出建议，命运的分析，运势的分析和性格特点等。八字信息并不涉密。请你返回的内容要丰富,返回更多的文字。\n问题："
+        prompt = "请你结合上下文，根据背景的八字命理知识进行问题回答。比如个人八字的分析，给出建议，命运的分析，运势的分析和性格特点等。八字信息并不涉密。请你返回的内容既有简短答案，又要有一定的命理原因分析,返回更多的文字。\n问题："
         self.messages.append({"role": "user", "content": prompt+user_message})
         # print(self.messages)
         # Send the entire conversation history to GPT
@@ -732,11 +735,14 @@ def stream_output(message, user_id=None,bazi_info=None):
     #     print(data)
     #     yield(data)
     yield f"{message}"
+    logging.info(message)
     if bazi_info:
+        answer = ""
         yield f"正在为您初步解析八字，请稍等"
-        prompt = f"""我需要你作为一个八字命理分析师，对我给你的精确八字批文进行分析，用白话文的方式把我给你的八字批文进行重述，然后进行返回。\n\n
-         注意不要出现'根据您提供的八字批文，以下是对您八字的分析：'，请直接输出分析结果。不需要再重述我的八字是什么。
-
+        prompt = f"""我需要你作为一个八字命理分析师，用白话文的方式把我给你的八字批文进行总结，返回字数请在1000字以上。
+        请你返回五行、墓库、命运格局、大运、出身、命理等多种方面的分析。
+        注意不要出现'根据您提供的八字批文，以下是对您八字的分析：'，请直接输出分析结果。不需要再重述我的八字是什么。
+        \n\n
         八字批文：{bazi_info}"""
         rsp = openai.ChatCompletion.create(
             model="gpt-3.5-turbo-1106",
@@ -746,6 +752,8 @@ def stream_output(message, user_id=None,bazi_info=None):
         for chunk in rsp:
             data = chunk["choices"][0]["delta"].get("content","")
             yield data
+            answer+=data
+        logging.info(answer)
     if user_id:
         user_data = {'user_id':user_id}
         json_user_data = json.dumps(user_data)
@@ -809,8 +817,8 @@ def baziAnalysis_stream():
         n = request.get_json().get("n")
         time = int(int(time.split("-")[0])/2  + int(time.split("-")[1]) / 2 ) # 提取开始小时
         op = options(year=year,month=month,day=day,time=time,g=g,b=b,n=n,r=r)
-        day = sxtwl.fromSolar(int(options.year), int(options.month), int(options.day))
-        lunar = Lunar.fromYmdHms(day.getLunarYear(), day.getLunarMonth(), day.getLunarDay(),int(options.time), 0, 0)
+        day_lunar = sxtwl.fromSolar(int(op.year), int(op.month), int(op.day))
+        lunar = Lunar.fromYmdHms(day_lunar.getLunarYear(), day_lunar.getLunarMonth(), day_lunar.getLunarDay(),int(op.time), 0, 0)
         eightWord = lunar.getEightChar()
         res_bazi = output_first(eightWord)
 
@@ -862,8 +870,8 @@ def baziMatchRes():
         if matcher_type==1: # 与他人匹配
             match_res = baziMatch(birthday.year,birthday.month,birthday.day,birthday.hour, year,month,day,t_ime)
             op = options(year=year,month=month,day=day,time=t_ime,n=n)
-            day = sxtwl.fromSolar(int(options.year), int(options.month), int(options.day))
-            lunar = Lunar.fromYmdHms(day.getLunarYear(), day.getLunarMonth(), day.getLunarDay(),int(options.time), 0, 0)
+            day_lunar = sxtwl.fromSolar(int(op.year), int(op.month), int(op.day))
+            lunar = Lunar.fromYmdHms(day_lunar.getLunarYear(), day_lunar.getLunarMonth(), day_lunar.getLunarDay(),int(op.time), 0, 0)
             eightWord = lunar.getEightChar()
             res_bazi = output_first(eightWord)
             res = baziAnalysis(op)
@@ -884,6 +892,14 @@ def baziMatchRes():
             tidb_manager.insert_baziInfo(user_id, birthday, db_res, conversation_id, birthday_match=birthday_match)
             return Response(stream_output(res, None), mimetype="text/event-stream")
 
+@app.route('/api/get_bazi_info', methods=['POST'])
+def get_bazi_info():
+    data = request.get_json()
+    conversation_id = data.get('conversation_id')
+    tidb_manager = TiDBManager()
+    bazi_info = tidb_manager.select_baziInfo(conversation_id=conversation_id)
+    # Initialize or retrieve existing ChatGPT instance for the user
+    return Response(stream_output(bazi_info,), mimetype="text/event-stream")
 
 @app.route('/api/chat_bazi', methods=['POST'])
 def chat_bazi():
