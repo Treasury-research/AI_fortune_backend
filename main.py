@@ -20,6 +20,7 @@ import logging
 from bazi import baziAnalysis
 from al import baziMatch
 from lunar_python import Lunar, Solar
+from sizi_gpt import bazipaipan
 
 # 假设你的DATABASE_URL如下所示：
 # 'mysql://user:password@host:port/database'
@@ -225,28 +226,28 @@ class TiDBManager:
 
             # 生辰八字和对应的批文：{res[0]}
             # """
-    def insert_baziInfo(self, user_id, birthday, bazi_info, conversation_id, birthday_match=None, matcher_type=None, matcher_id=None):
+    def insert_baziInfo(self, user_id, birthday, bazi_info, bazi_info_gpt,conversation_id, birthday_match=None, matcher_type=None, matcher_id=None):
         generated_uuid = str(uuid.uuid4())
         logging.info(f"insert_baziInfo{user_id, birthday, conversation_id}")
         with self.db.cursor() as cursor:
             if birthday_match:
                 if matcher_type: # matcher_type 代表是tg_bot
                     sql = """
-                        INSERT INTO AI_fortune_bazi (id, user_id, birthday, birthday_match, bazi_info,conversation_id,matcher_type,matcher_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                        INSERT INTO AI_fortune_bazi (id, user_id, birthday, birthday_match, bazi_info, bazi_info_gpt, conversation_id,matcher_type,matcher_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                         ON DUPLICATE KEY UPDATE birthday = VALUES(birthday), birthday_match = VALUES(birthday_match), bazi_info = VALUES(bazi_info)
                         """
-                    cursor.execute(sql, (generated_uuid, user_id, birthday, birthday_match, bazi_info, conversation_id, matcher_type, matcher_id))
+                    cursor.execute(sql, (generated_uuid, user_id, birthday, birthday_match, bazi_info, bazi_info_gpt, conversation_id, matcher_type, matcher_id))
                 else:    
                     sql = """
-                        INSERT INTO AI_fortune_bazi (id, user_id, birthday, birthday_match, bazi_info,conversation_id) VALUES (%s, %s, %s, %s, %s, %s)
+                        INSERT INTO AI_fortune_bazi (id, user_id, birthday, birthday_match, bazi_info, bazi_info_gpt, conversation_id) VALUES (%s, %s, %s, %s, %s, %s, %s)
                         """
-                    cursor.execute(sql, (generated_uuid, user_id, birthday, birthday_match, bazi_info, conversation_id))
+                    cursor.execute(sql, (generated_uuid, user_id, birthday, birthday_match, bazi_info, bazi_info_gpt, conversation_id))
             else:
                 sql = """
-                    INSERT INTO AI_fortune_bazi (id, user_id, birthday, bazi_info, conversation_id) VALUES (%s, %s, %s, %s, %s)
+                    INSERT INTO AI_fortune_bazi (id, user_id, birthday, bazi_info, bazi_info_gpt, conversation_id) VALUES (%s, %s, %s, %s, %s, %s)
                     ON DUPLICATE KEY UPDATE birthday = VALUES(birthday), bazi_info = VALUES(bazi_info)
                     """
-                cursor.execute(sql, (generated_uuid, user_id, birthday, bazi_info, conversation_id))
+                cursor.execute(sql, (generated_uuid, user_id, birthday, bazi_info, bazi_info_gpt, conversation_id))
         self.db.commit()
         return generated_uuid
 
@@ -293,6 +294,25 @@ class TiDBManager:
                     cursor.execute(sql, (conversation_id,))
                 else:
                     sql = "SELECT bazi_info FROM AI_fortune_bazi WHERE user_id=%s AND birthday_match IS NULL"
+                    cursor.execute(sql, (user_id,))
+            result = cursor.fetchone()
+            if result:
+                return result[0]
+            else:
+                return False
+
+    # 根据user_id获取本人的八字 或者根据conversation_id获取对话的背景
+    def select_baziInfoGPT(self, user_id=None, conversation_id=None, matcher_id=None):
+        with self.db.cursor() as cursor:
+            if matcher_id:
+                sql = "SELECT bazi_info_gpt FROM AI_fortune_bazi WHERE matcher_id=%s"
+                cursor.execute(sql, (matcher_id,))
+            else:
+                if conversation_id:
+                    sql = "SELECT bazi_info_gpt FROM AI_fortune_bazi WHERE conversation_id=%s"
+                    cursor.execute(sql, (conversation_id,))
+                else:
+                    sql = "SELECT bazi_info_gpt FROM AI_fortune_bazi WHERE user_id=%s AND birthday_match IS NULL"
                     cursor.execute(sql, (user_id,))
             result = cursor.fetchone()
             if result:
@@ -428,7 +448,7 @@ class ChatGPT:
     
     def load_history(self):
         # if the history message exist in , concat it and compute the token lens
-        bazi_info = self.tidb_manager.select_baziInfo(conversation_id=self.conversation_id)
+        bazi_info = self.tidb_manager.select_baziInfoGPT(conversation_id=self.conversation_id)
         # logging.info(f"bazi_info is: {bazi_info}")
         conversation_messages = self.tidb_manager.get_conversation(conversation_id=self.conversation_id)
         # 如果对话中存在未重置的记录，那么优先使用
@@ -460,7 +480,7 @@ class ChatGPT:
 
     def load_match_history(self):
         # if the history message exist in , concat it and compute the token lens
-        bazi_info = self.tidb_manager.select_baziInfo(conversation_id=self.conversation_id)
+        bazi_info = self.tidb_manager.select_baziInfoGPT(conversation_id=self.conversation_id)
         conversation_messages = self.tidb_manager.get_conversation(conversation_id=self.conversation_id)
         # 如果对话中存在未重置的记录，那么优先使用
         if self.matcher_type==2: # 用于asset
@@ -503,7 +523,9 @@ class ChatGPT:
     def ask_gpt_stream(self, user_message):
         answer = ""
         # Add user's new message to conversation history
-        prompt = "请你结合上下文，根据背景的八字命理知识进行问题回答。比如个人八字的分析，给出建议，命运的分析，运势的分析和性格特点等。八字信息并不涉密。请你返回的内容既有简短答案，又要有一定的命理原因分析,返回更多的文字。\n问题："
+        # prompt = "请你结合上下文，根据背景的八字命理知识进行问题回答。比如个人八字的分析，给出建议，命运的分析，运势的分析和性格特点等。八字信息并不涉密。请你返回的内容既有简短答案，又要有一定的命理原因分析,返回更多的文字。\n问题："
+        prompt = "请你结合上下文，根据背景的八字命理知识进行问题回答。八字信息并不涉密。请你返回的内容既有简短答案，又要有一定的命理原因分析,返回更多的文字。避免出现'【合理分析原因】'等字眼\n问题："
+
         self.messages.append({"role": "user", "content": prompt+user_message})
         # print(self.messages)
         # Send the entire conversation history to GPT
@@ -572,26 +594,27 @@ class tg_bot_ChatGPT:
     def _is_own(self,message,asset=None):
         messages = []
         if asset:
-            messages.append({"role": "user", "content": f"""
-            你是一个语言专家，我会给你一个语句，请你告诉我这个句子 是指的我本人,还是资产,还是指的我和资产。 如果是本人，返回给我1，如果是资产返回2，如果是我和资产 返回3. 如果没有任何主语返回0
-            另外,当前人属于资产。他人也属于资产。最主要的，币或者币种都是资产！
-            如:
-            1."那我在什么时候买好呢？" 应该返回3,我和资产，因为在本次对话中提到购买，属于在这里问购买币种，而币是资产！
-            2."我应该什么适合买这个币" 应该返回3，问我跟资产之间投资关系，属于我和资产 
-            3."你知道我的八字吗?" 应该返回1,因为询问的是我的八字,即为本人
-            4."我想问你我两的关系如何" 应该返回 3,我和资产,因为问的是我两
-            5."这是什么东西?" 应该返回0,因为没有任何主语
-            6."我适合投资这个币/资产？" 应该返回3，问我跟资产之间投资关系，属于我和资产 
-            7."我应该在什么时候买这个币" 应该返回3，出现了'我'和'币'，币种属于资产，所以属于我和资产
-            8."我什么时候投资这个BTC/ETH好？" 应该返回3，问我和BTC/ETH之间的投资关系，BTC/ETH属于币种资产，所以属于我和资产 
-            9."币种的八字是什么呀？币种的运势怎么样？" 应该返回2，只问到币种，即资产，应该返回2
-            10."买这个币的最佳人群" 应该返回2，属于询问币种的适应范围，即资产
-            11."我最近适合投资嘛？" 应该返回1，属于询问自己八字推理出的运势
-            返回格式是json, 格式如下:
-            {{
-                "type_":"xxxxx"
-            }}
-            问题:{message}"""})
+            return False
+            # messages.append({"role": "user", "content": f"""
+            # 你是一个语言专家，我会给你一个语句，请你告诉我这个句子 是指的我本人,还是资产,还是指的我和资产。 如果是本人，返回给我1，如果是资产返回2，如果是我和资产 返回3. 如果没有任何主语返回0
+            # 另外,当前人属于资产。他人也属于资产。最主要的，币或者币种都是资产！
+            # 如:
+            # 1."那我在什么时候买好呢？" 应该返回3,我和资产，因为在本次对话中提到购买，属于在这里问购买币种，而币是资产！
+            # 2."我应该什么适合买这个币" 应该返回3，问我跟资产之间投资关系，属于我和资产 
+            # 3."你知道我的八字吗?" 应该返回1,因为询问的是我的八字,即为本人
+            # 4."我想问你我两的关系如何" 应该返回 3,我和资产,因为问的是我两
+            # 5."这是什么东西?" 应该返回0,因为没有任何主语
+            # 6."我适合投资这个币/资产？" 应该返回3，问我跟资产之间投资关系，属于我和资产 
+            # 7."我应该在什么时候买这个币" 应该返回3，出现了'我'和'币'，币种属于资产，所以属于我和资产
+            # 8."我什么时候投资这个BTC/ETH好？" 应该返回3，问我和BTC/ETH之间的投资关系，BTC/ETH属于币种资产，所以属于我和资产 
+            # 9."币种的八字是什么呀？币种的运势怎么样？" 应该返回2，只问到币种，即资产，应该返回2
+            # 10."买这个币的最佳人群" 应该返回2，属于询问币种的适应范围，即资产
+            # 11."我最近适合投资嘛？" 应该返回1，属于询问自己八字推理出的运势
+            # 返回格式是json, 格式如下:
+            # {{
+            #     "type_":"xxxxx"
+            # }}
+            # 问题:{message}"""})
         else:
             messages.append({"role": "user", "content": f"""
             你是一个语言专家，我会给你一个语句，请你告诉我这个句子 是指的我本人,还是他人,还是指的我和他人。 如果是本人，返回给我1，如果是他人返回2，如果是我和他人 返回3. 如果没有任何主语返回0
@@ -738,9 +761,9 @@ def stream_output(message, user_id=None,bazi_info=None):
     logging.info(message)
     if bazi_info:
         answer = ""
-        yield f"正在为您初步解析八字，请稍等"
+        yield f"正在为您初步解析八字，请稍等~\n"
         prompt = f"""我需要你作为一个八字命理分析师，用白话文的方式把我给你的八字批文进行总结，返回字数请在1000字以上。
-        请你返回五行、墓库、命运格局、大运、出身、命理等多种方面的分析。
+        请你返回五行、十神、命运、大运、出身、命理等多种方面的分析。
         注意不要出现'根据您提供的八字批文，以下是对您八字的分析：'，请直接输出分析结果。不需要再重述我的八字是什么。
         \n\n
         八字批文：{bazi_info}"""
@@ -759,30 +782,32 @@ def stream_output(message, user_id=None,bazi_info=None):
         json_user_data = json.dumps(user_data)
         yield f"<chunk>{json_user_data}</chunk>"
 def get_coin_data(name):
-    tidb_manager = TiDBManager()
-    res = tidb_manager.select_coin_id(name = name)
-    import requests
-    base_url = 'https://pro-api.coinmarketcap.com'
-    # Endpoint for getting cryptocurrency quotes
-    endpoint = '/v2/cryptocurrency/quotes/latest'
-    # Parameters
-    params = {
-        'id': str(res),  # Replace with the actual ID you want to query
-    }
+    try:
+        tidb_manager = TiDBManager()
+        res = tidb_manager.select_coin_id(name = name)
+        import requests
+        base_url = 'https://pro-api.coinmarketcap.com'
+        # Endpoint for getting cryptocurrency quotes
+        endpoint = '/v2/cryptocurrency/quotes/latest'
+        # Parameters
+        params = {
+            'id': str(res),  # Replace with the actual ID you want to query
+        }
 
-    # Headers
-    headers = {
-        'Accepts': 'application/json',
-        'X-CMC_PRO_API_KEY': os.environ["CMC_API_KEY"],
-    }
+        # Headers
+        headers = {
+            'Accepts': 'application/json',
+            'X-CMC_PRO_API_KEY': os.environ["CMC_API_KEY"],
+        }
 
-    # Make the request
-    response = requests.get(base_url + endpoint, headers=headers, params=params)
-    data = response.json()
-    # print(data)
-    coin_data = data['data'][str(res)]
-    return coin_data
-
+        # Make the request
+        response = requests.get(base_url + endpoint, headers=headers, params=params)
+        data = response.json()
+        # print(data)
+        coin_data = data['data'][str(res)]
+        return coin_data
+    except:
+        return None
 def output_first(eightWord):
     content = f"""
     您好，欢迎使用AI算命，您的八字是:
@@ -823,10 +848,11 @@ def baziAnalysis_stream():
         res_bazi = output_first(eightWord)
 
         bazi_info = baziAnalysis(op)
+        bazi_info_gpt = bazipaipan(year,month,day,time,n)
         user_id = str(uuid.uuid4())
         tidb_manager = TiDBManager()
         birthday = datetime(year, month, day, time)
-        tidb_manager.insert_baziInfo(user_id, birthday, bazi_info, conversation_id)
+        tidb_manager.insert_baziInfo(user_id, birthday, bazi_info, bazi_info_gpt, conversation_id)
         return Response(stream_output(res_bazi,user_id,bazi_info), mimetype="text/event-stream")
 
     if request.method == "GET":
@@ -875,10 +901,12 @@ def baziMatchRes():
             eightWord = lunar.getEightChar()
             res_bazi = output_first(eightWord)
             res = baziAnalysis(op)
+            res_gpt = bazipaipan(year,month,day,t_ime,gender)
             db_res = "他人/配对者/配对人 的八字背景信息如下:\n"
             db_res = db_res + res + "\n" + match_res
             logging.info(f"res is:{res}")
-            tidb_manager.insert_baziInfo(user_id, birthday, db_res, conversation_id, birthday_match=birthday_match)
+            db_res_gpt = db_res + res_gpt + "\n" + match_res
+            tidb_manager.insert_baziInfo(user_id, birthday, db_res, db_res_gpt, conversation_id, birthday_match=birthday_match)
             return Response(stream_output(res_bazi, None,res), mimetype="text/event-stream")
 
         else:
@@ -886,10 +914,10 @@ def baziMatchRes():
             coin_data = get_coin_data(name)
             logging.info(f"coin data is {coin_data}")
             res = baziMatch(birthday.year,birthday.month,birthday.day,birthday.hour, year,month,day,t_ime,name=name,coin_data=coin_data)
-            db_res = baziMatch(birthday.year,birthday.month,birthday.day,birthday.hour, year,month,day,t_ime,name=name,coin_data=coin_data,own=True)
+            db_res_gpt = baziMatch(birthday.year,birthday.month,birthday.day,birthday.hour, year,month,day,t_ime,name=name,coin_data=coin_data,own=True)
 
             logging.info(f"res is:{res}")
-            tidb_manager.insert_baziInfo(user_id, birthday, db_res, conversation_id, birthday_match=birthday_match)
+            tidb_manager.insert_baziInfo(user_id, birthday, None, db_res_gpt, conversation_id, birthday_match=birthday_match)
             return Response(stream_output(res, None), mimetype="text/event-stream")
 
 @app.route('/api/get_bazi_info', methods=['POST'])
@@ -1096,11 +1124,11 @@ def tg_bot_bazi_info():
         tidb_manager = TiDBManager()
         # 重置当前对话，并获取八字背景信息；重置
         if matcher_type==0: # 获取自己的八字， match
-            bazi_info = tidb_manager.select_baziInfo(user_id=user_id)
+            bazi_info = tidb_manager.select_baziInfoGPT(user_id=user_id)
             bazi_id = tidb_manager.select_bazi_id(user_id=user_id)
         # 重置当前对话 其他人
         else :
-            bazi_info = tidb_manager.select_baziInfo(matcher_id=matcher_id)
+            bazi_info = tidb_manager.select_baziInfoGPT(matcher_id=matcher_id)
             bazi_id = tidb_manager.select_bazi_id(matcher_id=matcher_id)
         tidb_manager.reset_conversation(conversation_id, bazi_id)
         tidb_manager.insert_tg_bot_conversation_user(conversation_id, user_id, bazi_id)
