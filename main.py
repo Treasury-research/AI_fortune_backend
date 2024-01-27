@@ -20,7 +20,7 @@ import logging
 from bazi import baziAnalysis
 from al import baziMatch
 from lunar_python import Lunar, Solar
-from sizi_gpt import bazipaipan
+from bazi_gpt import bazipaipan
 
 # 假设你的DATABASE_URL如下所示：
 # 'mysql://user:password@host:port/database'
