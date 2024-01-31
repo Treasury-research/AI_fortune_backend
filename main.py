@@ -9,6 +9,7 @@ import os
 import requests
 import random
 import openai
+from openai import OpenAI
 import mysql.connector
 from dbutils.pooled_db import PooledDB
 from urllib.parse import urlparse
