@@ -60,6 +60,7 @@ logging.basicConfig(filename='AI_fortune.log', level=logging.DEBUG, encoding='ut
 app = Flask(__name__)
 # 跨域支持
 CORS(app, resources=r'/*')
+client = OpenAI()
 
 # Your existing ChatGPT class here (no changes needed)
 class TiDBManager:
@@ -251,6 +252,29 @@ class TiDBManager:
         self.db.commit()
         return generated_uuid
 
+    def update_assistant(self, conversation_id, bazi_id=None, assistant_id=None,thread_id=None):
+        with self.db.cursor() as cursor:
+            if bazi_id:
+                sql = """
+                    UPDATE AI_fortune_bazi SET assistant_id = %s, thread_id = %s WHERE id = %s 
+                    """
+                cursor.execute(sql, (assistant_id, thread_id, bazi_id))
+            elif conversation_id:
+                sql = """
+                    UPDATE AI_fortune_bazi SET assistant_id = %s, thread_id = %s WHERE conversation_id = %s 
+                    """
+                cursor.execute(sql, (assistant_id, thread_id, conversation_id))
+        self.db.commit()
+    def select_assistant(self, conversation_id, assistant_id=None,thread_id=None):
+        with self.db.cursor() as cursor:
+            sql = "SELECT assistant_id,thread_id FROM AI_fortune_bazi WHERE conversation_id=%s"
+            cursor.execute(sql, (conversation_id,))
+            result = cursor.fetchone()
+            if result:
+                return result
+            else:
+                return False
+
     def update_bazi_info(self, bazi_info, bazi_id=None, birthday=None,conversation_id = None):
         with self.db.cursor() as cursor:
             if bazi_id:
@@ -361,6 +385,213 @@ class TiDBManager:
             return result[0]
         else:
             return False
+
+class ChatGPT_assistant:
+    def __init__(self, conversation_id, match=None, matcher_type=None):
+        self.conversation_id = conversation_id
+        self.assistant_id, self.thread_id = None,None
+        self.tidb_manager = TiDBManager()
+        self.match=match
+        self.matcher_type = matcher_type
+        # self.user_id = self.tidb_manager.get_user_id(self.conversation_id)
+        # get the history messages
+        if match:
+            self.load_match_history()
+        else:
+            self.load_history()  # Load the conversation history
+
+        
+    def _is_own(self,message,asset=None):
+        messages = []
+        if asset:
+            messages.append({"role": "user", "content": f"""
+            你是一个语言专家，我会给你一个语句，请你告诉我这个句子 是指的我本人,还是资产,还是指的我和资产。 如果是本人，返回给我1，如果是资产返回2，如果是我和资产 返回3. 如果没有任何主语返回0
+            另外,当前人属于资产。他人也属于资产。最主要的，币或者币种都是资产！
+            如:
+            1."那我在什么时候买好呢？" 应该返回3,我和资产，因为在本次对话中提到购买，属于在这里问购买币种，而币是资产！
+            2."我应该什么适合买这个币" 应该返回3，问我跟资产之间投资关系，属于我和资产 
+            3."你知道我的八字吗?" 应该返回1,因为询问的是我的八字,即为本人
+            4."我想问你我两的关系如何" 应该返回 3,我和资产,因为问的是我两
+            5."这是什么东西?" 应该返回0,因为没有任何主语
+            6."我适合投资这个币/资产？" 应该返回3，问我跟资产之间投资关系，属于我和资产 
+            7."我应该在什么时候买这个币" 应该返回3，出现了'我'和'币'，币种属于资产，所以属于我和资产
+            8."我什么时候投资这个BTC/ETH好？" 应该返回3，问我和BTC/ETH之间的投资关系，BTC/ETH属于币种资产，所以属于我和资产 
+            9."币种的八字是什么呀？币种的运势怎么样？" 应该返回2，只问到币种，即资产，应该返回2
+            10."买这个币的最佳人群" 应该返回2，属于询问币种的适应范围，即资产
+            11."我最近适合投资嘛？" 应该返回1，属于询问自己八字推理出的运势
+            返回格式是json, 格式如下:
+            {{
+                "type_":"xxxxx"
+            }}
+            问题:{message}"""})
+        else:
+            messages.append({"role": "user", "content": f"""
+            你是一个语言专家，我会给你一个语句，请你告诉我这个句子 是指的我本人,还是他人,还是指的我和他人。 如果是本人，返回给我1，如果是他人返回2，如果是我和他人 返回3. 如果没有任何主语返回0
+            另外,当前人属于他人.
+            如:
+            1."我问你这个人的八字，上文有提到" 应该返回2,他人,因为问的是这个人,属于当前人,即为他人
+            2."当前人的八字已经给你了，上面有说，你不知道?" 应该返回2,他人,因为问的是当前人,即为他人
+            3."你知道我的八字吗?" 应该返回1,因为询问的是我的八字,即为本人
+            4."我想问你我两的关系如何" 应该返回 3,我和他人,因为问的是我两
+            5."这是什么东西?" 应该返回0,因为没有任何主语
+            判断一下问题询问的是本人\他人\群体 
+            返回格式是json, 格式如下:
+            {{
+                "type_":"xxxxx"
+            }}
+            问题:{message}"""})
+
+        rsp = client.chat.completions.create(
+            model="gpt-3.5-turbo-1106",                                          # 模型选择GPT 3.5 Turbo
+            messages=messages,
+            max_tokens = 2048
+        )
+        res = rsp.choices[0]["message"]["content"]
+        # rsp = openai.ChatCompletion.create(
+        #     model="gpt-3.5-turbo-1106",
+        #     messages=messages
+        # )
+        # res = rsp.choices[0]["message"]["content"]
+        logging.info(f"问题类型:{res}")
+        if '1' in res:
+            return True
+        else:
+            return False
+
+    
+    def load_history(self):
+        file_ids = ["file-Ni5nhFHvnu2yqqh9z2f6ELoN","file-3F0BvLqCaSYyxGtMVAi42Dn2","file-Sb3blbOsIFlqU1U40fhgofbJ","file-fzdDakZ3LcPuPaLJ4ZYO2wLV"]
+        res = self.tidb_manager.select_assistant(conversation_id=self.conversation_id)
+        if res:
+            self.assistant_id, self.thread_id = res[0],res[1]
+        else:
+            assistant = client.beta.assistants.create(
+                name="bazi",
+                instructions="""我想你作为一个八字命理分析师，根据已有背景知识进行推理, 回答user提出的问题。
+                推算步骤如下:
+                    1. 五行推算步骤
+                    排八字->五行归属->五行盛衰->平衡分析.
+                    2. 十神推算步骤
+                    日主确定->十神计算->十神分析.
+                    3. 神煞分析步骤
+                    神煞识别->影响分析.
+                    4. 大运流年分析步骤
+                    大运信息获取->流年计算->分析影响：分析大运和流年对个人八字的影响，预测不同生命周期内的运势变化。
+                    5. 命运分析步骤
+                    综合分析：将五行、十神、神煞、大运流年的分析结果综合起来，全面评估个人的性格、健康、财运、事业、婚姻等方面。
+                    调整建议：根据分析结果，提出相应的调整建议，帮助改善或利用未来的运势。
+                """,
+                #   instructions=prompt,
+                model="gpt-3.5-turbo-1106",
+                tools=[{"type": "retrieval"}],
+                file_ids=file_ids
+            )
+            self.assistant_id = assistant.id
+            thread = client.beta.threads.create()
+            self.thread_id = thread.id
+            self.update_assistant(conversation_id=self.conversation_id, assistant_id=self.assistant_id, thread_id=self.thread_id)
+            bazi_info_gpt = self.tidb_manager.select_baziInfoGPT(conversation_id=self.conversation_id)
+            prompt = f"""
+                以下背景信息是对话的基础,回答问题时你需要将背景信息作为基本.
+                '背景信息：{bazi_info_gpt}'
+                    """
+            message = client.beta.threads.messages.create(
+                thread_id=self.thread_id,
+                role="user",
+                content= prompt,
+            )
+
+    def load_match_history(self):
+        file_ids = ["file-Ni5nhFHvnu2yqqh9z2f6ELoN","file-3F0BvLqCaSYyxGtMVAi42Dn2","file-Sb3blbOsIFlqU1U40fhgofbJ","file-fzdDakZ3LcPuPaLJ4ZYO2wLV"]
+        res = self.tidb_manager.select_assistant(conversation_id=self.conversation_id)
+        if res:
+            self.assistant_id, self.thread_id = res[0],res[1]
+        else:
+            assistant = client.beta.assistants.create(
+                name="bazi",
+                instructions="""我想你作为一个八字命理分析师，根据已有背景知识进行推理, 回答user提出的问题。
+                推算步骤如下:
+                    1. 五行推算步骤
+                    排八字->五行归属->五行盛衰->平衡分析.
+                    2. 十神推算步骤
+                    日主确定->十神计算->十神分析.
+                    3. 神煞分析步骤
+                    神煞识别->影响分析.
+                    4. 大运流年分析步骤
+                    大运信息获取->流年计算->分析影响：分析大运和流年对个人八字的影响，预测不同生命周期内的运势变化。
+                    5. 命运分析步骤
+                    综合分析：将五行、十神、神煞、大运流年的分析结果综合起来，全面评估个人的性格、健康、财运、事业、婚姻等方面。
+                    调整建议：根据分析结果，提出相应的调整建议，帮助改善或利用未来的运势。
+                """,
+                #   instructions=prompt,
+                model="gpt-3.5-turbo-1106",
+                tools=[{"type": "retrieval"}],
+                file_ids=file_ids
+            )
+            self.assistant_id = assistant.id
+            thread = client.beta.threads.create()
+            self.thread_id = thread.id
+            self.update_assistant(conversation_id=self.conversation_id, assistant_id=self.assistant_id, thread_id=self.thread_id)
+            bazi_info_gpt = self.tidb_manager.select_baziInfoGPT(conversation_id=self.conversation_id)
+            if self.matcher_type==2:
+                prompt =  f"""我想你作为一个命理占卜分析师。我将给你如下信息，他人/配对者/配对人 的生辰八字，还有八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
+                注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
+                你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
+                
+
+                他人/配对者/配对人的信息：{bazi_info}"""
+            else:
+                prompt = f"""我想你作为一个个人与资产占卜分析师。我将给你如下信息， 货币资产的基本信息，还有用户和资产八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
+                注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
+                你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
+                
+
+                货币/资产的信息：{bazi_info}
+                """
+            message = client.beta.threads.messages.create(
+                thread_id=self.thread_id,
+                role="user",
+                content= prompt,
+            )
+
+    def ask_gpt_stream(self, user_message):
+        answer = ""
+        # Add user's new message to conversation history
+        # prompt = "请你结合上下文，根据背景的八字命理知识进行问题回答。比如个人八字的分析，给出建议，命运的分析，运势的分析和性格特点等。八字信息并不涉密。请你返回的内容既有简短答案，又要有一定的命理原因分析,返回更多的文字。\n问题："
+        prompt = "请你结合上下文，根据背景的八字命理知识进行问题回答。八字信息并不涉密。请你返回的内容既有简短答案，又要有一定的命理原因分析,返回更多的文字。不要出现'【合理分析原因】'等字眼\n问题："
+
+        if self.match:
+            if self.matcher_type==2:
+                is_own = self._is_own(user_message,asset=True)
+            else:
+                is_own = self._is_own(user_message)
+            if is_own:
+                res = "请到本人八字聊天中进行详细咨询。"
+                yield res
+                # self.messages.append({"role": "assistant", "content": res})
+                # self.writeToTiDB(user_message, res)
+                return 
+        message = client.beta.threads.messages.create(
+            thread_id=self.thread_id,
+            role="user",
+            content= prompt + user_message,
+        )
+        # 创建运行模型
+        run = client.beta.threads.runs.create( 
+            thread_id=self.thread_id,
+            assistant_id=self.assistant_id)
+    
+        # 获取gpt的answer
+        while run.status != "completed":
+            # print(run.status)
+            run = client.beta.threads.runs.retrieve(
+                thread_id=self.thread_id,
+                run_id=run.id
+                )
+        messages = client.beta.threads.messages.list(thread_id=thread_id)
+        res = messages.data[0].content[0].text.value
+        yield res
+
 class ChatGPT:
     def __init__(self, conversation_id, match=None, matcher_type=None):
         self.conversation_id = conversation_id
@@ -434,11 +665,18 @@ class ChatGPT:
                 "type_":"xxxxx"
             }}
             问题:{message}"""})
-        rsp = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo-1106",
-            messages=messages
+
+        rsp = client.chat.completions.create(
+            model="gpt-3.5-turbo-1106",                                          # 模型选择GPT 3.5 Turbo
+            messages=messages,
+            max_tokens = 2048
         )
         res = rsp.choices[0]["message"]["content"]
+        # rsp = openai.ChatCompletion.create(
+        #     model="gpt-3.5-turbo-1106",
+        #     messages=messages
+        # )
+        # res = rsp.choices[0]["message"]["content"]
         logging.info(f"问题类型:{res}")
         if '1' in res:
             return True
@@ -540,16 +778,30 @@ class ChatGPT:
                 # self.messages.append({"role": "assistant", "content": res})
                 # self.writeToTiDB(user_message, res)
                 return 
-        rsp = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo-1106",
+
+        # v1.xxx        
+        rsp = client.chat.completions.create(
+            model="gpt-3.5-turbo-1106",                                          # 模型选择GPT 3.5 Turbo
             messages=self.messages,
+            max_tokens = 2048,
             stream=True
         )
-        # yield "<chunk>"
+
         for chunk in rsp:
             data = chunk["choices"][0]["delta"].get("content","")
             answer += data
             yield data
+        # v0.xxx
+        # rsp = openai.ChatCompletion.create(
+        #     model="gpt-3.5-turbo-1106",
+        #     messages=self.messages,
+        #     stream=True
+        # )
+        # yield "<chunk>"
+        # for chunk in rsp:
+        #     data = chunk["choices"][0]["delta"].get("content","")
+        #     answer += data
+        #     yield data
         # yield f"</chunk><chunk>{{'user_id':{self.user_id}}}</chunk>"
         # Add GPT's reply to conversation history
         self.messages.append({"role": "assistant", "content": answer})
@@ -901,6 +1153,7 @@ def baziMatchRes():
             eightWord = lunar.getEightChar()
             res_bazi = output_first(eightWord)
             res = baziAnalysis(op)
+            gender = n
             res_gpt = bazipaipan(year,month,day,t_ime,gender)
             db_res = "他人/配对者/配对人 的八字背景信息如下:\n"
             db_res = db_res + res + "\n" + match_res
@@ -936,7 +1189,9 @@ def chat_bazi():
     user_message = data.get('message')
 
     # Initialize or retrieve existing ChatGPT instance for the user
-    chat = ChatGPT(conversation_id)
+    # chat = ChatGPT(conversation_id)
+    chat = ChatGPT_assistant(conversation_id)
+
     return Response(chat.ask_gpt_stream(user_message), mimetype="text/event-stream")
 
 @app.route('/api/chat_bazi_match', methods=['POST'])
@@ -946,7 +1201,8 @@ def chat_bazi_match():
     user_message = data.get('message')
     matcher_type = data.get('matcher_type')
     # Initialize or retrieve existing ChatGPT instance for the user
-    chat = ChatGPT(conversation_id, match=True, matcher_type=matcher_type)
+    # chat = ChatGPT(conversation_id, match=True, matcher_type=matcher_type)
+    chat = ChatGPT_assistant(conversation_id, match=True, matcher_type=matcher_type)
     return Response(chat.ask_gpt_stream(user_message), mimetype="text/event-stream")
 
 @app.route('/api/reset_chat', methods=['POST'])

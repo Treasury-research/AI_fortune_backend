@@ -272,7 +272,34 @@ def baziAnalysis(options):
     print()
     print("甲己-中正土  乙庚-仁义金  丙辛-威制水  丁壬-淫慝木  戊癸-无情火", "  三会:", str(zhi_huis).replace("'",""))
     print("="*120)    
-
+    tianganshishen = lunar.getBaZiShiShenGan()
+    dizhishishen = lunar.getBaZiShiShenZhi()
+    nianshishen = lunar.getBaZiShiShenYearZhi()
+    yueshishen = lunar.getBaZiShiShenMonthZhi()
+    rishishen = lunar.getBaZiShiShenDayZhi()
+    shishishen = lunar.getBaZiShiShenTimeZhi()
+    shishen = [tianganshishen[0], tianganshishen[1], tianganshishen[3]]
+    shishen.extend(nianshishen)
+    shishen.extend(yueshishen)
+    shishen.extend(rishishen)
+    shishen.extend(shishishen)
+    print("十神:", end='')
+    shishen_shensha = {
+    "正官": "政府、权力、规则、法律。正直、勤奋、克制、守信。女命丈夫、姻缘。",
+    "七杀": "疾病、小人、贫穷、官非。多疑、冲动、好斗。女命情人。",
+    "正印": "学历、证书、贵人、地位。善良、有爱心、有修养。母亲。",
+    "偏印": "宗教、失业、学术、偏业。精明、警觉、创造力、孤独。继母。",
+    "正财": "钱财、事业、富裕、健康。勤俭、专一、现实、敏感。男命妻子、姻缘。",
+    "偏财": "财运、富裕、才艺、副业。豁达、交际、风流、拜金。男命情人、姻缘。",
+    "食神": "平安、口福、才艺、智慧。宽容、人缘好、斯文、奉献。子女。",
+    "伤官": "聪明、才华、技术、商业。悟性、张扬、创新、骄傲。克夫。",
+    "比肩": "兄弟、公平、竞争、精力。毅力、勤奋、自尊、执行力。兄弟。",
+    "劫财": "官非、贫困、破财、疾病。争斗、自我、冲动、直率。克妻。"
+    }
+    print('\t'.join(shishen))
+    print("十神神煞:")
+    for ss in shishen:
+        print(f"\t{ss}:{shishen_shensha[ss]}")
     #print(zhi_3hes, "生：寅申巳亥 败：子午卯酉　库：辰戌丑未")
     #print("地支六合:", zhi_6hes)
     # out = ''
@@ -1721,6 +1748,7 @@ def baziAnalysis(options):
     import openai
     import os
     import json
+    from openai import OpenAI
 
     content = f"""我希望你作为一个八字占卜推理师，按照"年 月 日 时"的排列信息给你八字，然后你对八字进行命运和出身的分析，要求分析尽可能丰富，要求输出使用文言文。可以参考的书籍如《三命通命》等。
     注意只返回命运和出身相关的信息，其他信息不需要，避免返回'兹八字'，'参考xxx'，'依据八字','八字分析，皆依古籍而论，实际人生，以个人之努力与机遇为转机点。此乃娱乐之辩，切勿过信。'等不相干的言论。
@@ -1732,15 +1760,24 @@ def baziAnalysis(options):
     "chushen":"xxxx"
     }}
     """
-
-    completion = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo-1106",
+    client = OpenAI()
+    completion = client.chat.completions.create(
+        model="gpt-3.5-turbo-1106",                                          # 模型选择GPT 3.5 Turbo
         messages=[
-            {"role": "user",
-            "content": content}
-        ],
+                {"role": "user", "content":content}],
+        max_tokens = 2048
     )
-    string_res = completion["choices"][0]["message"]["content"].strip()
+    string_res = completion.choices[0].message.content.strip()
+
+    ## v0.x api
+    # completion = openai.ChatCompletion.create(
+    #     model="gpt-3.5-turbo-1106",
+    #     messages=[
+    #         {"role": "user",
+    #         "content": content}
+    #     ],
+    # )
+    # string_res = completion["choices"][0]["message"]["content"].strip()
 
     print("\n\n命")    
     print("="*120)  
@@ -1858,12 +1895,12 @@ def baziAnalysis(options):
                 empty = chr(12288)
                 if zhi2_ in empties[zhus[2]]:
                     empty = '空'       
-                # out = "{1:>3d} {2:<5d}{3} {15} {14} {13}  {4}:{5}{8}{6:{0}<6s}{12}{7}{8}{9} - {10:{0}<13s} {11}".format(
-                #     chr(12288), int(value[0]) + i, value[1] + i, gan2_+zhi2_,ten_deities[me][gan2_], gan2_,check_gan(gan2_, gans2), 
-                #     zhi2_, yinyang(zhi2_), ten_deities[me][zhi2_], zhi6_, zhi__,empty, fu2, nayins[(gan2_, zhi2_)], ten_deities[me][zhi2_]) 
-                out = "{1} {2} {3} {15} {14} {13}  {4}:{5}{8}{6:{0}<6s}{12}{7}{8}{9} - {10:{0}<13s} {11}".format(
-                    chr(12288), chr(12288), value[1] + i, gan2_+zhi2_,ten_deities[me][gan2_], gan2_,check_gan(gan2_, gans2), 
+                out = "{1:>3d} {2:<5d}{3} {15} {14} {13}  {4}:{5}{8}{6:{0}<6s}{12}{7}{8}{9} - {10:{0}<13s} {11}".format(
+                    chr(12288), int(value[0]) + i, value[1] + i, gan2_+zhi2_,ten_deities[me][gan2_], gan2_,check_gan(gan2_, gans2), 
                     zhi2_, yinyang(zhi2_), ten_deities[me][zhi2_], zhi6_, zhi__,empty, fu2, nayins[(gan2_, zhi2_)], ten_deities[me][zhi2_]) 
+                # out = "{1} {2} {3} {15} {14} {13}  {4}:{5}{8}{6:{0}<6s}{12}{7}{8}{9} - {10:{0}<13s} {11}".format(
+                #     chr(12288), chr(12288), value[1] + i, gan2_+zhi2_,ten_deities[me][gan2_], gan2_,check_gan(gan2_, gans2), 
+                #     zhi2_, yinyang(zhi2_), ten_deities[me][zhi2_], zhi6_, zhi__,empty, fu2, nayins[(gan2_, zhi2_)], ten_deities[me][zhi2_]) 
                 jia = ""
                 if gan2_ in gans2:
                     for i in range(5):
@@ -1889,7 +1926,7 @@ def baziAnalysis(options):
                     out = out + "  四败：子午卯酉"  
                 if set('辰戌丑未').issubset(all_zhis) and len(set('辰戌丑未')&set(zhis)) == 2 :
                     out = out + "  四库：辰戌丑未"             
-                # print(out)
+                print(out)
                 # solar = Solar(int(options.year), int(options.month), int(options.day), int(options.time), 0, 0)
                 # lunar = solar.getLunar()
                 # baZi = lunar.getEightChar()
@@ -1998,11 +2035,11 @@ def baziAnalysis(options):
                 print("正学堂:", nayins[zhus[seq]], "\t", end=' ')
 
 
-    #xuetang = xuetangs[ten_deities[me]['本']][1]
-    #if xuetang in zhis:
-        #print("学堂:", xuetang, "\t\t", end=' ')
-        #if xuetangs[ten_deities[me]['本']] in zhus:
-            #print("正学堂:", xuetangs[ten_deities[me]['本']], "\t\t", end=' ')
+    xuetang = xuetangs[ten_deities[me]['本']][1]
+    if xuetang in zhis:
+        print("学堂:", xuetang, "\t\t", end=' ')
+        if xuetangs[ten_deities[me]['本']] in zhus:
+            print("正学堂:", xuetangs[ten_deities[me]['本']], "\t\t", end=' ')
 
     # 学堂分析
 

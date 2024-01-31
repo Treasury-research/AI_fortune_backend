@@ -7,13 +7,14 @@ from collections import OrderedDict
 import openai
 import os
 import json
-
+from openai import OpenAI
 from lunar_python import Lunar
 from colorama import init
 from sizi import summarys
 from sizi_gpt import summary
 from bidict import bidict
 
+client = OpenAI()
 Gan = ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"]
 Zhi = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"]
 shishen_shensha = {
@@ -209,13 +210,20 @@ def shishenGPT(shishen):
     请根据我发的十神找到对应的解释，然后根据这些解释给出此人命理的详细分析，返回的答案不能出现十神的解释
     注意返回在200字以上
     """
-    messages = [{"role":"system","content":prompt}]    
-    messages.append({"role": "user","content":f"十神为：{shishen}"})
-    completion = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo-1106",
-        messages=messages
+    completion = client.chat.completions.create(
+        model="gpt-3.5-turbo-1106",                                          # 模型选择GPT 3.5 Turbo
+        messages=[{"role": "system", "content": prompt},
+                {"role": "user", "content":f"十神为：{shishen}"}],
+        max_tokens = 2048
     )
-    string_res = completion["choices"][0]["message"]["content"].strip()
+    string_res = completion.choices[0].message.content.strip()
+    # messages = [{"role":"system","content":prompt}]    
+    # messages.append({"role": "user","content":f"十神为：{shishen}"})
+    # completion = openai.ChatCompletion.create(
+    #     model="gpt-3.5-turbo-1106",
+    #     messages=messages
+    # )
+    # string_res = completion["choices"][0]["message"]["content"].strip()
     return string_res
 
 def mingyunGPT(bazi,mingyun):
@@ -224,13 +232,20 @@ def mingyunGPT(bazi,mingyun):
     请根据我发的八字和命理给出到对应的命运描述，并帮我组织下语言发我白话文，注意不要出现'根据你提供xxx'
     注意返回在200字以上
     """
-    messages = [{"role": "system", "content": prompt}]
-    messages.append({"role": "user","content": f"八字为：{bazi} \n\n 命运为：{mingyun}"})
-    completion = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo-1106",
-        messages=messages
+    completion = client.chat.completions.create(
+        model="gpt-3.5-turbo-1106",                                          # 模型选择GPT 3.5 Turbo
+        messages=[{"role": "system", "content": prompt},
+                {"role": "user", "content":f"八字为：{bazi} \n\n 命运为：{mingyun}"}],
+        max_tokens = 2048
     )
-    string_res = completion["choices"][0]["message"]["content"].strip()
+    string_res = completion.choices[0].message.content.strip()
+    # messages = [{"role": "system", "content": prompt}]
+    # messages.append({"role": "user","content": f"八字为：{bazi} \n\n 命运为：{mingyun}"})
+    # completion = openai.ChatCompletion.create(
+    #     model="gpt-3.5-turbo-1106",
+    #     messages=messages
+    # )
+    # string_res = completion["choices"][0]["message"]["content"].strip()
     return string_res
 
 def chushenGPT(bazi):
@@ -239,13 +254,20 @@ def chushenGPT(bazi):
     请根据我发的八字，测算这个人的出身情况
     注意返回在200字以上
     """
-    messages = [{"role": "system", "content": prompt}]
-    messages.append({"role": "user","content": f"八字为：{bazi} \n\n"})
-    completion = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo-1106",
-        messages=messages
+    # messages = [{"role": "system", "content": prompt}]
+    # messages.append({"role": "user","content": f"八字为：{bazi} \n\n"})
+    # completion = openai.ChatCompletion.create(
+    #     model="gpt-3.5-turbo-1106",
+    #     messages=messages
+    # )
+    # string_res = completion["choices"][0]["message"]["content"].strip()
+    completion = client.chat.completions.create(
+        model="gpt-3.5-turbo-1106",                                          # 模型选择GPT 3.5 Turbo
+        messages=[{"role": "system", "content": prompt},
+                {"role": "user", "content":f"八字为：{bazi} \n\n"}],
+        max_tokens = 2048
     )
-    string_res = completion["choices"][0]["message"]["content"].strip()
+    string_res = completion.choices[0].message.content.strip()
     return string_res
 import io
 import os
