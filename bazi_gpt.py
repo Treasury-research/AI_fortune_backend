@@ -214,7 +214,8 @@ def shishenGPT(shishen):
         model="gpt-3.5-turbo-1106",                                          # 模型选择GPT 3.5 Turbo
         messages=[{"role": "system", "content": prompt},
                 {"role": "user", "content":f"十神为：{shishen}"}],
-        max_tokens = 2048
+        max_tokens = 2048,
+        temperature = 0
     )
     string_res = completion.choices[0].message.content.strip()
     # messages = [{"role":"system","content":prompt}]    
@@ -236,7 +237,8 @@ def mingyunGPT(bazi,mingyun):
         model="gpt-3.5-turbo-1106",                                          # 模型选择GPT 3.5 Turbo
         messages=[{"role": "system", "content": prompt},
                 {"role": "user", "content":f"八字为：{bazi} \n\n 命运为：{mingyun}"}],
-        max_tokens = 2048
+        max_tokens = 2048,
+        temperature = 0
     )
     string_res = completion.choices[0].message.content.strip()
     # messages = [{"role": "system", "content": prompt}]
@@ -265,7 +267,8 @@ def chushenGPT(bazi):
         model="gpt-3.5-turbo-1106",                                          # 模型选择GPT 3.5 Turbo
         messages=[{"role": "system", "content": prompt},
                 {"role": "user", "content":f"八字为：{bazi} \n\n"}],
-        max_tokens = 2048
+        max_tokens = 2048,
+        temperature = 0
     )
     string_res = completion.choices[0].message.content.strip()
     return string_res

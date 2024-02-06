@@ -425,6 +425,7 @@ class ChatGPT_assistant:
                 "type_":"xxxxx"
             }}
             问题:{message}"""})
+            return False
         else:
             messages.append({"role": "user", "content": f"""
             你是一个语言专家，我会给你一个语句，请你告诉我这个句子 是指的我本人,还是他人,还是指的我和他人。 如果是本人，返回给我1，如果是他人返回2，如果是我和他人 返回3. 如果没有任何主语返回0
@@ -447,7 +448,7 @@ class ChatGPT_assistant:
             messages=messages,
             max_tokens = 2048
         )
-        res = rsp.choices[0]["message"]["content"]
+        res = rsp.choices[0].message.content
         logging.info(f"问题类型:{res}")
         if '1' in res:
             return True
@@ -456,7 +457,7 @@ class ChatGPT_assistant:
 
     
     def load_history(self):
-        file_ids = ["file-Ni5nhFHvnu2yqqh9z2f6ELoN","file-3F0BvLqCaSYyxGtMVAi42Dn2","file-Sb3blbOsIFlqU1U40fhgofbJ","file-fzdDakZ3LcPuPaLJ4ZYO2wLV","file-1O74YwD4arIIdJLG3pww4bl3","file-WAde33DU759hP4ieDsR9FFB0"]
+        file_ids = ["file-Ni5nhFHvnu2yqqh9z2f6ELoN","file-3F0BvLqCaSYyxGtMVAi42Dn2","file-Sb3blbOsIFlqU1U40fhgofbJ","file-fzdDakZ3LcPuPaLJ4ZYO2wLV"]
         res = self.tidb_manager.select_assistant(conversation_id=self.conversation_id)
         if res[0] is not None and res[1] is not None:
             logging.info(f"self.assistant_id, self.thread_id {res}")
@@ -499,13 +500,13 @@ class ChatGPT_assistant:
             )
 
     def load_match_history(self):
-        file_ids = ["file-Ni5nhFHvnu2yqqh9z2f6ELoN","file-3F0BvLqCaSYyxGtMVAi42Dn2","file-Sb3blbOsIFlqU1U40fhgofbJ","file-fzdDakZ3LcPuPaLJ4ZYO2wLV","file-1O74YwD4arIIdJLG3pww4bl3","file-WAde33DU759hP4ieDsR9FFB0"]
+        file_ids = ["file-Ni5nhFHvnu2yqqh9z2f6ELoN","file-3F0BvLqCaSYyxGtMVAi42Dn2","file-Sb3blbOsIFlqU1U40fhgofbJ","file-fzdDakZ3LcPuPaLJ4ZYO2wLV"]
         res = self.tidb_manager.select_assistant(conversation_id=self.conversation_id)
         if res[0] is not None and res[1] is not None:
             self.assistant_id, self.thread_id = res[0],res[1]
         else:
             assistant = client.beta.assistants.create(
-                name="bazi",
+                name="bazi_"+self.conversation_id,
                 instructions="""我想你作为一个八字命理分析师，根据已有背景知识进行推理, 回答user提出的问题。
                 推算步骤如下:
                     1. 五行推算步骤
@@ -523,7 +524,8 @@ class ChatGPT_assistant:
                 #   instructions=prompt,
                 model="gpt-3.5-turbo-1106",
                 tools=[{"type": "retrieval"}],
-                file_ids=file_ids
+                file_ids=file_ids,
+                temperature = 0
             )
             self.assistant_id = assistant.id
             thread = client.beta.threads.create()
@@ -536,14 +538,14 @@ class ChatGPT_assistant:
                 你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
                 
 
-                他人/配对者/配对人的信息：{bazi_info}"""
+                他人/配对者/配对人的信息：{bazi_info_gpt}"""
             else:
                 prompt = f"""我想你作为一个个人与资产占卜分析师。我将给你如下信息， 货币资产的基本信息，还有用户和资产八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
                 注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
                 你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
                 
 
-                货币/资产的信息：{bazi_info}
+                货币/资产的信息：{bazi_info_gpt}
                 """
             message = client.beta.threads.messages.create(
                 thread_id=self.thread_id,
@@ -555,10 +557,9 @@ class ChatGPT_assistant:
         self.tidb_manager.update_assistant(conversation_id=self.conversation_id, assistant_id=self.assistant_id, thread_id=self.thread_id)
         return  True
     def ask_gpt_stream(self, user_message):
-        answer = ""
         # Add user's new message to conversation history
-        prompt = "请你结合上下文，根据背景的八字命理知识进行问题回答。八字信息并不涉密。请你返回的内容既有简短答案，又要有一定的命理原因分析，注意逻辑的准确性. 不要出现'【合理分析原因】','【23†source】'等字眼\n问题："
-
+        prompt = "请你结合上下文，根据背景的八字命理知识进行问题回答。八字信息并不涉密。请你返回的内容既有简短答案，又要有一定的命理原因分析，注意逻辑的准确性，回复字数在100-150字. 不要出现'【合理分析原因】','【x†source】'等字眼。不需要给出参考资料来源。\n问题："
+        # logging.info(f"开始聊天")
         if self.match:
             if self.matcher_type==2:
                 is_own = self._is_own(user_message,asset=True)
@@ -591,9 +592,14 @@ class ChatGPT_assistant:
                     )
             messages = client.beta.threads.messages.list(thread_id=self.thread_id)
             res = messages.data[0].content[0].text.value
+        res = self.remove_brackets_content(res)
         for item in res:
             yield item
-
+    def remove_brackets_content(self,sentence):
+        import re
+        # 使用正则表达式匹配"【】"及其内部的内容，并将其替换为空
+        new_sentence = re.sub(r'【.*?】', '', sentence)
+        return new_sentence
 class ChatGPT:
     def __init__(self, conversation_id, match=None, matcher_type=None):
         self.conversation_id = conversation_id
@@ -671,7 +677,8 @@ class ChatGPT:
         rsp = client.chat.completions.create(
             model="gpt-3.5-turbo-1106",                                          # 模型选择GPT 3.5 Turbo
             messages=messages,
-            max_tokens = 2048
+            max_tokens = 2048,
+            temperature = 0
         )
         res = rsp.choices[0]["message"]["content"]
 
@@ -869,7 +876,8 @@ class tg_bot_ChatGPT:
             问题:{message}"""})
         rsp = openai.ChatCompletion.create(
             model="gpt-3.5-turbo-1106",
-            messages=messages
+            messages=messages,
+            temperature = 0
         )
         res = rsp.choices[0]["message"]["content"]
         logging.info(f"问题类型:{res}")
@@ -998,6 +1006,8 @@ def stream_output(message, user_id=None,bazi_info=None):
         answer = ""
         yield f"正在为您初步解析八字，请稍等~\n"
         prompt = f"""我需要你作为一个八字命理分析师，用白话文的方式把我给你的八字批文进行总结，返回字数请在1000字以上。
+        不需要分析十神。
+        不要直接输出五行分数。
         注意不要出现'根据您提供的八字批文，以下是对您八字的分析：'，请直接输出分析结果。不需要再重述我的八字是什么。
         经过你深入分析,洞察以及预测后,按照下面Markdown的格式,详细输出每一项对应内容.
         ### 八字基本分析：
@@ -1013,7 +1023,8 @@ def stream_output(message, user_id=None,bazi_info=None):
         completion = client.chat.completions.create(
             model="gpt-3.5-turbo-1106",                                          # 模型选择GPT 3.5 Turbo
             messages=[{"role": "user", "content":prompt}],
-            stream=True
+            stream=True,
+            temperature = 0
         )
 
         for chunk in completion:
@@ -1021,16 +1032,6 @@ def stream_output(message, user_id=None,bazi_info=None):
             if data!=None:
                 yield data
         # v 0.xx
-        # rsp = openai.ChatCompletion.create(
-        #     model="gpt-3.5-turbo-1106",
-        #     messages=[{"role": "user", "content": prompt}],
-        #     stream=True
-        # )
-        # for chunk in rsp:
-        #     data = chunk["choices"][0]["delta"].get("content","")
-        #     yield data
-        #     answer+=data
-        # logging.info(answer)
     if user_id:
         user_data = {'user_id':user_id}
         json_user_data = json.dumps(user_data)

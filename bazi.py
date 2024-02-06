@@ -1765,7 +1765,8 @@ def baziAnalysis(options):
         model="gpt-3.5-turbo-1106",                                          # 模型选择GPT 3.5 Turbo
         messages=[
                 {"role": "user", "content":content}],
-        max_tokens = 2048
+        max_tokens = 2048,
+        temperature = 0
     )
     string_res = completion.choices[0].message.content.strip()
 
