@@ -519,7 +519,7 @@ class ChatGPT_assistant:
             self.thread_id = thread.id
             self.tidb_manager.update_assistant(conversation_id=self.conversation_id, assistant_id=self.assistant_id, thread_id=self.thread_id)
             bazi_info_gpt = self.tidb_manager.select_baziInfoGPT(conversation_id=self.conversation_id)
-            if self.matcher_type==2:
+            if self.matcher_type==1:
                 prompt =  f"""我想你作为一个命理占卜分析师。我将给你如下信息，他人/配对者/配对人 的生辰八字，还有八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
                 注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
                 你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
@@ -1155,7 +1155,8 @@ def tg_bot_bazi_info():
         else :
             bazi_info = tidb_manager.select_baziInfoGPT(matcher_id=matcher_id)
             bazi_id = tidb_manager.select_bazi_id(matcher_id=matcher_id)
-        tidb_manager.reset_conversation(conversation_id, bazi_id)
+        chat = tg_bot_ChatGPT_assistant(conversation_id)
+        res = chat.reset_conversation()
         tidb_manager.insert_tg_bot_conversation_user(conversation_id, user_id, bazi_id)
         return Response(stream_output(None, None, bazi_info), mimetype="text/event-stream")
 
