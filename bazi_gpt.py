@@ -208,53 +208,50 @@ def shishenGPT(shishen):
     劫财：官非、贫困、破财、疾病。争斗、自我、冲动、直率。克妻。
 
     请根据我发的十神找到对应的解释，然后根据这些解释给出此人命理的详细分析，返回的答案不能出现十神的解释
-    注意返回在200字以上
+    注意返回在100-150字
+    用json的格式返回. 格式为 {{”response“:十神分析解释}}
     """
     completion = client.chat.completions.create(
         model="gpt-3.5-turbo-1106",                                          # 模型选择GPT 3.5 Turbo
         messages=[{"role": "system", "content": prompt},
                 {"role": "user", "content":f"十神为：{shishen}"}],
         max_tokens = 2048,
-        temperature = 0
+        temperature = 0,
+        response_format={"type": "json_object"}
+
     )
     string_res = completion.choices[0].message.content.strip()
-    # messages = [{"role":"system","content":prompt}]    
-    # messages.append({"role": "user","content":f"十神为：{shishen}"})
-    # completion = openai.ChatCompletion.create(
-    #     model="gpt-3.5-turbo-1106",
-    #     messages=messages
-    # )
-    # string_res = completion["choices"][0]["message"]["content"].strip()
-    return string_res
+    string_res = json.loads(string_res)
+
+    return string_res["response"]
 
 def mingyunGPT(bazi,mingyun):
     prompt = f"""
     你是个算命大师，我现在会把某个人的八字和命理告诉你
     请根据我发的八字和命理给出到对应的命运描述，并帮我组织下语言发我白话文，注意不要出现'根据你提供xxx'
-    注意返回在200字以上
+    注意返回在100-150字
+    用json的格式返回. 格式为 {{”response“:命运描述的白话文}}
     """
     completion = client.chat.completions.create(
         model="gpt-3.5-turbo-1106",                                          # 模型选择GPT 3.5 Turbo
         messages=[{"role": "system", "content": prompt},
                 {"role": "user", "content":f"八字为：{bazi} \n\n 命运为：{mingyun}"}],
         max_tokens = 2048,
-        temperature = 0
+        temperature = 0,
+        response_format={"type": "json_object"}
+
     )
     string_res = completion.choices[0].message.content.strip()
-    # messages = [{"role": "system", "content": prompt}]
-    # messages.append({"role": "user","content": f"八字为：{bazi} \n\n 命运为：{mingyun}"})
-    # completion = openai.ChatCompletion.create(
-    #     model="gpt-3.5-turbo-1106",
-    #     messages=messages
-    # )
-    # string_res = completion["choices"][0]["message"]["content"].strip()
-    return string_res
+    string_res = json.loads(string_res)
+
+    return string_res["response"]
 
 def chushenGPT(bazi):
     prompt = f"""
     你是个算命大师，我现在会把某个人的八字告诉你
     请根据我发的八字，测算这个人的出身情况
-    注意返回在200字以上
+    注意返回在100-150字
+    用json的格式返回. 格式为 {{”response“:出身情况}}
     """
     # messages = [{"role": "system", "content": prompt}]
     # messages.append({"role": "user","content": f"八字为：{bazi} \n\n"})
@@ -268,10 +265,14 @@ def chushenGPT(bazi):
         messages=[{"role": "system", "content": prompt},
                 {"role": "user", "content":f"八字为：{bazi} \n\n"}],
         max_tokens = 2048,
-        temperature = 0
+        temperature = 0,
+        response_format={"type": "json_object"}
+
     )
     string_res = completion.choices[0].message.content.strip()
-    return string_res
+    string_res = json.loads(string_res)
+
+    return string_res["response"]
 import io
 import os
 
@@ -362,14 +363,10 @@ def bazipaipan(year, month, day, time, gender):
     shishen.extend(yueshishen)
     shishen.extend(rishishen)
     shishen.extend(shishishen)
-    print("十神:", end='')
-    print('\t'.join(shishen))
-    print("十神神煞:")
-    for ss in shishen:
-        print(f"\t{ss}:{shishen_shensha[ss]}")
+
     wuXing = lunar.getBaZiWuXing()  # 五行
     print("五行:", end='')
-    print('\t'.join(wuXing))
+    print(' '.join(wuXing))
     scores = {"金":0, "木":0, "水":0, "火":0, "土":0} # 五行分数
     for item in gans:  
         scores[gan5[item]] += 5
@@ -386,17 +383,26 @@ def bazipaipan(year, month, day, time, gender):
     if zero_score_keys:
         print(f"五行元素中绝对缺失的有: {zero_score_keys}")
     print(f"五行元素中相对缺失的有: {min_score_keys}")
-
-    print("十神分析:\n")
-    print(shishenGPT(shishen))
-    print("命分析:\n")
+    print("命分析:")
     zhus = [item for item in zip(gans, zhis)]
+    sum_index = ''.join([mingzhu, '日', *zhus[3]])
+    print(mingyunGPT(eightWord,summary[sum_index]))
+    print("出身分析：")
+    print(chushenGPT(eightWord))
+
+    print("---------------")
+    print("十神:", end='')
+    print('\t'.join(shishen))
+    print("十神神煞:")
+    for ss in shishen:
+        print(f"\t{ss}:{shishen_shensha[ss]}")
+    print("十神分析:")
+    print(shishenGPT(shishen))
     sum_index = ''.join([mingzhu, '日', *zhus[3]])
     print(sum_index)
     print(summary[sum_index])
-    print(mingyunGPT(eightWord,summary[sum_index]))
 
-    print("大运分析：\n")
+    print("大运分析：")
     dayuns = []
     # 计算大运
     seq = Gan.index(gans.year)
@@ -466,8 +472,7 @@ def bazipaipan(year, month, day, time, gender):
         out = out + jia + get_shens(gans, zhis, gan_, zhi_)
         print(out)
 
-    print("出身分析：\n")
-    print(chushenGPT(eightWord))
+
 # if __name__ =="__main__":
 #     year = '1991'
 #     month = '7'
