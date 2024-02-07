@@ -1750,14 +1750,13 @@ def baziAnalysis(options):
     import json
     from openai import OpenAI
 
-    content = f"""我希望你作为一个八字占卜推理师，按照"年 月 日 时"的排列信息给你八字，然后你对八字进行命运和出身的分析，要求分析尽可能丰富，要求输出使用文言文。可以参考的书籍如《三命通命》等。
-    注意只返回命运和出身相关的信息，其他信息不需要，避免返回'兹八字'，'参考xxx'，'依据八字','八字分析，皆依古籍而论，实际人生，以个人之努力与机遇为转机点。此乃娱乐之辩，切勿过信。'等不相干的言论。
+    content = f"""我希望你作为一个八字占卜推理师，按照"年 月 日 时"的排列信息给你八字，然后你对八字进行命运分析，要求分析尽可能丰富，要求输出使用文言文。可以参考的书籍如《三命通命》等。
+    注意只返回命运信息，其他信息不需要，避免返回'兹八字'，'参考xxx'，'依据八字','八字分析，皆依古籍而论，实际人生，以个人之努力与机遇为转机点。此乃娱乐之辩，切勿过信。'等不相干的言论。
     八字：{ba}
     
     输出的格式为json，返回的json格式如下：
     {{
-    "mingyun":"xxx",
-    "chushen":"xxxx"
+    "mingyun":"xxx"
     }}
     """
     client = OpenAI()
@@ -2074,18 +2073,73 @@ def baziAnalysis(options):
 
 
     # 出身分析
-    cai = ten_deities[me].inverse['财']
-    guan = ten_deities[me].inverse['官']
-    jie = ten_deities[me].inverse['劫']
-    births = tuple(gans[:2])
-    if cai in births and guan in births:
-        birth = '不错'
-    #elif cai in births or guan in births:
-        #birth = '较好'
-    else:
+    # cai = ten_deities[me].inverse['财']
+    # guan = ten_deities[me].inverse['官']
+    # yin = ten_deities[me].inverse['印']
+    # sha = ten_deities[me].inverse['杀']
+    # jie = ten_deities[me].inverse['劫']
+    # births = tuple(gans[:2])
+    # # 2:很好 1：不错 0：一般 劫\杀同时出现为较差。
+    # if cai in births and guan in births:
+    #     birth = "很好"
+    # elif yin in births and guan in births:
+    #     birth = "很好"
+    # elif yin in births and cai in births:
+    #     birth = "很好"
+    # elif cai in births or guan in births or yin in births:
+    #     birth = '不错'
+    # else:
+    #     birth = '一般'
+    # if jie in births and sha in births:
+    #     birth = '较差'
+    scores_table = {
+    "正财": (2.5, 2),
+    "正官": (2.5, 2),
+    "正印": (2, 1.5),
+    "比肩": (0.5, 0.5),
+    "食神": (1, 0.5),
+    "偏财": (1.5, 1),
+    "七杀": (-2, -1.5),
+    "偏印": (-0.5, 0),
+    "劫财": (-2, -1.5),
+    "伤官": (-1, -0.5),
+    }
+    score = 0
+    for ts in tianganshishen[:2]:
+        score+=scores_table[ts][0]
+    for ds in dizhishishen[:2]:
+        score+=scores_table[ds][1]
+    if score>=7:
+        birth = '极好'
+    elif score>=3:
+        birth = '较好'
+    elif score>=-2:
+        birth = '尚可'
+    elif score>=-5:
         birth = '一般'
+    else:
+        birth = '寒门'
 
     print("出身:", birth)    
+    content = f"""我希望你作为一个八字占卜推理师，按照"年 月 日 时"的排列信息给你八字，和个人的出身信息。然后你对八字进行出身分析，要求分析尽可能丰富，要求输出使用文言文。可以参考的书籍如《三命通命》等。
+    注意只返回出身分析，其他信息不需要，避免返回'兹八字'，'参考xxx'，'依据八字','八字分析，皆依古籍而论，实际人生，以个人之努力与机遇为转机点。此乃娱乐之辩，切勿过信。'等不相干的言论。
+    八字：{ba}
+    出身：{birth}
+    输出的格式为json，返回的json格式如下：
+    {{
+    "chushen":"xxxx"
+    }}
+    """
+    client = OpenAI()
+    completion = client.chat.completions.create(
+        model="gpt-3.5-turbo-1106",                                          # 模型选择GPT 3.5 Turbo
+        messages=[
+                {"role": "user", "content":content}],
+        max_tokens = 2048,
+        temperature = 0
+    )
+    string_res = completion.choices[0].message.content.strip()
+
     try:
         gpt_res = json.loads(string_res)
         for i in gpt_res["chushen"].split("。"):

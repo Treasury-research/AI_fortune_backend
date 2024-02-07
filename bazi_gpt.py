@@ -246,11 +246,12 @@ def mingyunGPT(bazi,mingyun):
 
     return string_res["response"]
 
-def chushenGPT(bazi):
+def chushenGPT(bazi,chushen):
     prompt = f"""
     你是个算命大师，我现在会把某个人的八字告诉你
-    请根据我发的八字，测算这个人的出身情况
+    请根据我发的八字和出身情况扩写成个人的出身情况
     注意返回在100-150字
+    注意前后逻辑一致性
     用json的格式返回. 格式为 {{”response“:出身情况}}
     """
     # messages = [{"role": "system", "content": prompt}]
@@ -263,7 +264,7 @@ def chushenGPT(bazi):
     completion = client.chat.completions.create(
         model="gpt-3.5-turbo-1106",                                          # 模型选择GPT 3.5 Turbo
         messages=[{"role": "system", "content": prompt},
-                {"role": "user", "content":f"八字为：{bazi} \n\n"}],
+                {"role": "user", "content":f"八字为：{bazi} \n\n出身情况: {chushen}"}],
         max_tokens = 2048,
         temperature = 0,
         response_format={"type": "json_object"}
@@ -329,10 +330,10 @@ def bazipaipan(year, month, day, time, gender):
     sex = '女' if gender else '男' # 1 为男，0 为女
     print("性别：{}".format(sex))
     day_lunar = sxtwl.fromSolar(int(year), int(month), int(day))
-    print("公历:", end='')
+    print("公历：", end='')
     print("{}年{}月{}日".format(day_lunar.getSolarYear(), day_lunar.getSolarMonth(), day_lunar.getSolarDay()))
     lunar_birthday = day_lunar.getLunarYear() # 农历
-    print("农历:", end='')
+    print("农历：", end='')
     Lleap = "闰" if day_lunar.isLunarLeap() else ""
     print("{}年{}{}月{}日".format(day_lunar.getLunarYear(), Lleap, day_lunar.getLunarMonth(), day_lunar.getLunarDay()))
     lunar = Lunar.fromYmdHms(day_lunar.getLunarYear(), day_lunar.getLunarMonth(), day_lunar.getLunarDay(),int(time), 0, 0)
@@ -350,7 +351,7 @@ def bazipaipan(year, month, day, time, gender):
     zhis = Zhis(year=Zhi[yTG.dz], month=Zhi[mTG.dz], 
                 day=Zhi[dTG.dz], time=Zhi[gz.dz])
     mingzhu = gans.day
-    print(f"命主: {mingzhu}")
+    print(f"命主：{mingzhu}")
 
     tianganshishen = lunar.getBaZiShiShenGan()
     dizhishishen = lunar.getBaZiShiShenZhi()
@@ -365,7 +366,7 @@ def bazipaipan(year, month, day, time, gender):
     shishen.extend(shishishen)
 
     wuXing = lunar.getBaZiWuXing()  # 五行
-    print("五行:", end='')
+    print("五行：", end='')
     print(' '.join(wuXing))
     scores = {"金":0, "木":0, "水":0, "火":0, "土":0} # 五行分数
     for item in gans:  
@@ -381,22 +382,53 @@ def bazipaipan(year, month, day, time, gender):
     min_score_keys = [k for k, v in scores.items() if v == min_score]
     zero_score_keys = [k for k, v in scores.items() if v == 0]
     if zero_score_keys:
-        print(f"五行元素中绝对缺失的有: {zero_score_keys}")
-    print(f"五行元素中相对缺失的有: {min_score_keys}")
-    print("命分析:")
+        print(f"五行元素中绝对缺失的有： {zero_score_keys}")
+    print(f"五行元素中相对缺失的有： {min_score_keys}")
+    print("命分析：")
     zhus = [item for item in zip(gans, zhis)]
     sum_index = ''.join([mingzhu, '日', *zhus[3]])
     print(mingyunGPT(eightWord,summary[sum_index]))
     print("出身分析：")
-    print(chushenGPT(eightWord))
+        # 出身分析
+
+    # 出身分析
+
+    scores_table = {
+    "正财": (2.5, 2),
+    "正官": (2.5, 2),
+    "正印": (2, 1.5),
+    "比肩": (0.5, 0.5),
+    "食神": (1, 0.5),
+    "偏财": (1.5, 1),
+    "七杀": (-2, -1.5),
+    "偏印": (-0.5, 0),
+    "劫财": (-2, -1.5),
+    "伤官": (-1, -0.5),
+    }
+    score = 0
+    for ts in tianganshishen[:2]:
+        score+=scores_table[ts][0]
+    for ds in dizhishishen[:2]:
+        score+=scores_table[ds][1]
+    if score>=7:
+        birth = '极好'
+    elif score>=3:
+        birth = '较好'
+    elif score>=-2:
+        birth = '尚可'
+    elif score>=-5:
+        birth = '一般'
+    else:
+        birth = '寒门'
+    print(chushenGPT(eightWord,birth))
 
     print("---------------")
     print("十神:", end='')
     print('\t'.join(shishen))
-    print("十神神煞:")
+    print("十神神煞：")
     for ss in shishen:
         print(f"\t{ss}:{shishen_shensha[ss]}")
-    print("十神分析:")
+    print("十神分析：")
     print(shishenGPT(shishen))
     sum_index = ''.join([mingzhu, '日', *zhus[3]])
     print(sum_index)
@@ -473,11 +505,10 @@ def bazipaipan(year, month, day, time, gender):
         print(out)
 
 
-# if __name__ =="__main__":
-#     year = '1991'
-#     month = '7'
-#     day = '25'
-#     time = '10'
+if __name__ =="__main__":
+    year = '1991'
+    month = '7'
+    day = '25'
+    time = '10'
 
-#     bazipaipan(year,month,day,time,True)
-
+    print(bazipaipan(year,month,day,time,True))

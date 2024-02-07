@@ -806,7 +806,7 @@ def get_coin_data(name):
     except:
         return None
 def output_first(eightWord=None):
-    content = f"""您好，欢迎使用AI算命。"""
+    content = f"您好，欢迎使用AI算命。\n"
     return content
 
 @app.route('/api/baziAnalysis',methods=['POST','GET'])
