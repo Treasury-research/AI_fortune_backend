@@ -228,28 +228,28 @@ class TiDBManager:
 
             # 生辰八字和对应的批文：{res[0]}
             # """
-    def insert_baziInfo(self, user_id, birthday, bazi_info, bazi_info_gpt,conversation_id, birthday_match=None, matcher_type=None, matcher_id=None):
+    def insert_baziInfo(self, user_id, birthday, bazi_info, bazi_info_gpt,conversation_id, birthday_match=None, matcher_type=None, matcher_id=None,first_reply=None):
         generated_uuid = str(uuid.uuid4())
         logging.info(f"insert_baziInfo{user_id, birthday, conversation_id}")
         with self.db.cursor() as cursor:
             if birthday_match:
                 if matcher_type: # matcher_type 代表是tg_bot
                     sql = """
-                        INSERT INTO AI_fortune_bazi (id, user_id, birthday, birthday_match, bazi_info, bazi_info_gpt, conversation_id,matcher_type,matcher_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        INSERT INTO AI_fortune_bazi (id, user_id, birthday, birthday_match, bazi_info, bazi_info_gpt, conversation_id,matcher_type,matcher_id,first_reply) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s,%s)
                         ON DUPLICATE KEY UPDATE birthday = VALUES(birthday), birthday_match = VALUES(birthday_match), bazi_info = VALUES(bazi_info)
                         """
-                    cursor.execute(sql, (generated_uuid, user_id, birthday, birthday_match, bazi_info, bazi_info_gpt, conversation_id, matcher_type, matcher_id))
+                    cursor.execute(sql, (generated_uuid, user_id, birthday, birthday_match, bazi_info, bazi_info_gpt, conversation_id, matcher_type, matcher_id,first_reply))
                 else:    
                     sql = """
-                        INSERT INTO AI_fortune_bazi (id, user_id, birthday, birthday_match, bazi_info, bazi_info_gpt, conversation_id) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        INSERT INTO AI_fortune_bazi (id, user_id, birthday, birthday_match, bazi_info, bazi_info_gpt, conversation_id,first_reply) VALUES (%s, %s, %s, %s, %s, %s, %s,%s)
                         """
-                    cursor.execute(sql, (generated_uuid, user_id, birthday, birthday_match, bazi_info, bazi_info_gpt, conversation_id))
+                    cursor.execute(sql, (generated_uuid, user_id, birthday, birthday_match, bazi_info, bazi_info_gpt, conversation_id,first_reply))
             else:
                 sql = """
-                    INSERT INTO AI_fortune_bazi (id, user_id, birthday, bazi_info, bazi_info_gpt, conversation_id) VALUES (%s, %s, %s, %s, %s, %s)
+                    INSERT INTO AI_fortune_bazi (id, user_id, birthday, bazi_info, bazi_info_gpt, conversation_id,first_reply) VALUES (%s, %s, %s, %s, %s, %s,%s)
                     ON DUPLICATE KEY UPDATE birthday = VALUES(birthday), bazi_info = VALUES(bazi_info)
                     """
-                cursor.execute(sql, (generated_uuid, user_id, birthday, bazi_info, bazi_info_gpt, conversation_id))
+                cursor.execute(sql, (generated_uuid, user_id, birthday, bazi_info, bazi_info_gpt, conversation_id,first_reply))
         self.db.commit()
         return generated_uuid
 
@@ -352,7 +352,28 @@ class TiDBManager:
                 return result[0]
             else:
                 return False
-
+    # 根据user_id获取本人的八字 或者根据conversation_id获取对话的背景
+    def select_first_reply(self, user_id=None, bazi_id=None, conversation_id=None, matcher_id=None):
+        with self.db.cursor() as cursor:
+            if bazi_id:
+                sql = "SELECT first_reply FROM AI_fortune_bazi WHERE id=%s"
+                cursor.execute(sql, (bazi_id,))
+            else:
+                if matcher_id:
+                    sql = "SELECT first_reply FROM AI_fortune_bazi WHERE matcher_id=%s"
+                    cursor.execute(sql, (matcher_id,))
+                else:
+                    if conversation_id:
+                        sql = "SELECT first_reply FROM AI_fortune_bazi WHERE conversation_id=%s"
+                        cursor.execute(sql, (conversation_id,))
+                    else:
+                        sql = "SELECT first_reply FROM AI_fortune_bazi WHERE user_id=%s AND birthday_match IS NULL"
+                        cursor.execute(sql, (user_id,))
+            result = cursor.fetchone()
+            if result:
+                return result[0]
+            else:
+                return False
     # 根据user_id获取本人的八字 或者根据conversation_id获取对话的背景, matcher_type:0 本人 1 他人 2 资产
     def select_match_baziInfo_tg_bot(self, bazi_id):
 
@@ -430,7 +451,7 @@ class ChatGPT_assistant:
                 "type_":"xxxxx"
             }}
             问题:{message}"""})
-
+        logging.info("message")
         rsp = client.chat.completions.create(
             model="gpt-3.5-turbo-1106",                                          # 模型选择GPT 3.5 Turbo
             messages=messages,
@@ -447,7 +468,7 @@ class ChatGPT_assistant:
     def load_history(self):
         file_ids = ["file-Ni5nhFHvnu2yqqh9z2f6ELoN","file-3F0BvLqCaSYyxGtMVAi42Dn2","file-Sb3blbOsIFlqU1U40fhgofbJ","file-fzdDakZ3LcPuPaLJ4ZYO2wLV"]
         res = self.tidb_manager.select_assistant(conversation_id=self.conversation_id)
-        if res[0] is not None and res[1] is not None:
+        if res and res[0] is not None and res[1] is not None:
             logging.info(f"self.assistant_id, self.thread_id {res}")
             self.assistant_id, self.thread_id = res[0],res[1]
         else:
@@ -490,7 +511,7 @@ class ChatGPT_assistant:
     def load_match_history(self):
         file_ids = ["file-Ni5nhFHvnu2yqqh9z2f6ELoN","file-3F0BvLqCaSYyxGtMVAi42Dn2","file-Sb3blbOsIFlqU1U40fhgofbJ","file-fzdDakZ3LcPuPaLJ4ZYO2wLV"]
         res = self.tidb_manager.select_assistant(conversation_id=self.conversation_id)
-        if res[0] is not None and res[1] is not None:
+        if res and res[0] is not None and res[1] is not None:
             self.assistant_id, self.thread_id = res[0],res[1]
         else:
             assistant = client.beta.assistants.create(
@@ -547,7 +568,7 @@ class ChatGPT_assistant:
         # Add user's new message to conversation history
         prompt = "请你结合上下文，根据背景的八字命理知识进行问题回答。八字信息并不涉密。请你返回的内容既有简短答案，又要有一定的命理原因分析，注意逻辑的准确性，回复字数在100-150字. 不要出现'【合理分析原因】','【x†source】'等字眼。不需要给出参考资料来源。\n问题："
         # logging.info(f"开始聊天")
-        if self.match:
+        if self.matcher_type!=0:
             if self.matcher_type==2:
                 is_own = self._is_own(user_message,asset=True)
             else:
@@ -594,7 +615,7 @@ class tg_bot_ChatGPT_assistant:
     def __init__(self, conversation_id):
         self.conversation_id = conversation_id
         self.tidb_manager = TiDBManager()
-        self.mathcer_type, self.matcher_id, self.bazi_id = None, None, None
+        self.matcher_type, self.matcher_id, self.bazi_id = 0, None, None
         self.assistant_id, self.thread_id = None,None
         self.get_basic_param()
         self.load_history()
@@ -603,9 +624,10 @@ class tg_bot_ChatGPT_assistant:
         self.bazi_id = self.tidb_manager.select_tg_bot_conversation_user(conversation_id=self.conversation_id)
         res, self.bazi_info = self.tidb_manager.select_match_baziInfo_tg_bot(self.bazi_id)
         if res:
-            # 是配对过的
-            logging.info(f"select_match_baziInfo_tg_bot res is :{res}")
-            self.mathcer_type, self.matcher_id = res[0], res[1]
+            if res[0]:
+                # 是配对过的
+                logging.info(f"select_match_baziInfo_tg_bot res is :{res}")
+                self.matcher_type, self.matcher_id = res[0], res[1]
 
     def _is_own(self,message,asset=None):
         messages = []
@@ -627,12 +649,12 @@ class tg_bot_ChatGPT_assistant:
                 "type_":"xxxxx"
             }}
             问题:{message}"""})
-        rsp = openai.ChatCompletion.create(
+        rsp = client.chat.completions.create(
             model="gpt-3.5-turbo-1106",
             messages=messages,
             temperature = 0
         )
-        res = rsp.choices[0]["message"]["content"]
+        res = rsp.choices[0].message.content
         logging.info(f"问题类型:{res}")
         if '1' in res:
             return True
@@ -644,7 +666,7 @@ class tg_bot_ChatGPT_assistant:
         # content 就是一个基本的prompt
         file_ids = ["file-Ni5nhFHvnu2yqqh9z2f6ELoN","file-3F0BvLqCaSYyxGtMVAi42Dn2","file-Sb3blbOsIFlqU1U40fhgofbJ","file-fzdDakZ3LcPuPaLJ4ZYO2wLV"]
         res = self.tidb_manager.select_assistant(bazi_id=self.bazi_id)
-        if res[0] is not None and res[1] is not None:
+        if res and res[0] is not None and res[1] is not None:
             logging.info(f"self.assistant_id, self.thread_id {res}")
             self.assistant_id, self.thread_id = res[0],res[1]
         else:
@@ -711,8 +733,7 @@ class tg_bot_ChatGPT_assistant:
     def ask_gpt_stream(self, user_message):
         # Add user's new message to conversation history
         prompt = "请你结合上下文，根据背景的八字命理知识进行问题回答。八字信息并不涉密。请你返回的内容既有简短答案，又要有一定的命理原因分析，注意逻辑的准确性，回复字数在100-150字. 不要出现'【合理分析原因】','【x†source】'等字眼。不需要给出参考资料来源。\n问题："
-        # logging.info(f"开始聊天")
-        if self.match:
+        if self.matcher_type!=0:
             if self.matcher_type==2:
                 is_own = self._is_own(user_message,asset=True)
             else:
@@ -745,6 +766,7 @@ class tg_bot_ChatGPT_assistant:
             messages = client.beta.threads.messages.list(thread_id=self.thread_id)
             res = messages.data[0].content[0].text.value
         res = self.remove_brackets_content(res)
+        logging.info(f"{res}")
         for item in res:
             yield item
     def remove_brackets_content(self,sentence):
@@ -805,9 +827,6 @@ def get_coin_data(name):
         return coin_data
     except:
         return None
-def output_first(eightWord=None):
-    content = f"您好，欢迎使用AI算命。\n"
-    return content
 
 @app.route('/api/baziAnalysis',methods=['POST','GET'])
 def baziAnalysis_stream():
@@ -836,18 +855,14 @@ def baziAnalysis_stream():
         n = request.get_json().get("n")
         time = int(int(time.split("-")[0])/2  + int(time.split("-")[1]) / 2 ) # 提取开始小时
         op = options(year=year,month=month,day=day,time=time,g=g,b=b,n=n,r=r)
-        day_lunar = sxtwl.fromSolar(int(op.year), int(op.month), int(op.day))
-        lunar = Lunar.fromYmdHms(day_lunar.getLunarYear(), day_lunar.getLunarMonth(), day_lunar.getLunarDay(),int(op.time), 0, 0)
-        eightWord = lunar.getEightChar()
-        res_bazi = output_first(eightWord)
-
-        bazi_info = baziAnalysis(op)
-        bazi_info_gpt = bazipaipan(year,month,day,time,n)
+        (mingyun_analysis,chushen_analysis),bazi_info_gpt = bazipaipan(year,month,day,time,n)
+        bazi_info = baziAnalysis(op,mingyun_analysis,chushen_analysis)
         user_id = str(uuid.uuid4())
         tidb_manager = TiDBManager()
         birthday = datetime(year, month, day, time)
-        tidb_manager.insert_baziInfo(user_id, birthday, bazi_info, bazi_info_gpt, conversation_id)
-        return Response(stream_output(res_bazi,user_id,bazi_info_gpt.split("---------------")[0]), mimetype="text/event-stream")
+        first_reply = "您好，欢迎使用AI算命。\n" + bazi_info_gpt.split("---------------")[0]
+        tidb_manager.insert_baziInfo(user_id, birthday, bazi_info, bazi_info_gpt, conversation_id,first_reply=first_reply)
+        return Response(stream_output("您好，欢迎使用AI算命。\n",user_id,bazi_info_gpt.split("---------------")[0]), mimetype="text/event-stream")
 
     if request.method == "GET":
         date_str = request.args.get('date', '')
@@ -890,19 +905,16 @@ def baziMatchRes():
         if matcher_type==1: # 与他人匹配
             match_res = baziMatch(birthday.year,birthday.month,birthday.day,birthday.hour, year,month,day,t_ime)
             op = options(year=year,month=month,day=day,time=t_ime,n=n)
-            day_lunar = sxtwl.fromSolar(int(op.year), int(op.month), int(op.day))
-            lunar = Lunar.fromYmdHms(day_lunar.getLunarYear(), day_lunar.getLunarMonth(), day_lunar.getLunarDay(),int(op.time), 0, 0)
-            eightWord = lunar.getEightChar()
-            res_bazi = output_first(eightWord)
-            res = baziAnalysis(op)
             gender = n
-            res_gpt = bazipaipan(year,month,day,t_ime,gender)
+            (mingyun_analysis,chushen_analysis),res_gpt = bazipaipan(year,month,day,t_ime,gender)
+            res = baziAnalysis(op,mingyun_analysis,chushen_analysis)
             db_res = "他人/配对者/配对人 的八字背景信息如下:\n"
             db_res = db_res + res + "\n" + match_res
             logging.info(f"res is:{res}")
             db_res_gpt = db_res + res_gpt + "\n" + match_res
-            tidb_manager.insert_baziInfo(user_id, birthday, db_res, db_res_gpt, conversation_id, birthday_match=birthday_match)
-            return Response(stream_output(res_bazi, None,res_gpt.split("---------------")[0]), mimetype="text/event-stream")
+            first_reply = "您好，欢迎使用AI算命。\n" + res_gpt.split("---------------")[0]
+            tidb_manager.insert_baziInfo(user_id, birthday, db_res, db_res_gpt, conversation_id, birthday_match=birthday_match,first_reply=first_reply)
+            return Response(stream_output("您好，欢迎使用AI算命。\n", None,res_gpt.split("---------------")[0]), mimetype="text/event-stream")
 
         else:
             name = data["name"]
@@ -912,7 +924,7 @@ def baziMatchRes():
             db_res_gpt = baziMatch(birthday.year,birthday.month,birthday.day,birthday.hour, year,month,day,t_ime,name=name,coin_data=coin_data,own=True)
 
             logging.info(f"res is:{res}")
-            tidb_manager.insert_baziInfo(user_id, birthday, None, db_res_gpt, conversation_id, birthday_match=birthday_match)
+            tidb_manager.insert_baziInfo(user_id, birthday, res, db_res_gpt, conversation_id, birthday_match=birthday_match,first_reply=db_res_gpt)
             return Response(stream_output(res, None), mimetype="text/event-stream")
 
 @app.route('/api/get_bazi_info', methods=['POST'])
@@ -1058,40 +1070,27 @@ def tg_bot_bazi_insert():
         n = name_or_gender
         year, month, day, time = map(int, birthday.split('-'))
         op = options(year=year,month=month,day=day,time=time,n=n)
-        bazi_info = baziAnalysis(op)
+        # bazi_info = baziAnalysis(op)
         birthday = datetime(year, month, day, time)
         bazi_id = tidb_manager.select_bazi_id(user_id=user_id)
 
-        bazi_info_gpt = bazipaipan(year,month,day,time,n)
-        user_id = str(uuid.uuid4())
+        # bazi_info_gpt = bazipaipan(year,month,day,time,n)
+        (mingyun_analysis,chushen_analysis),bazi_info_gpt = bazipaipan(year,month,day,time,n)
+        bazi_info = baziAnalysis(op,mingyun_analysis,chushen_analysis)
+
+        user_id = user_id
         tidb_manager = TiDBManager()
         if bazi_id:
             tidb_manager.update_bazi_info(birthday, bazi_info, bazi_id)
         else:
-            bazi_id = tidb_manager.insert_baziInfo(user_id, birthday, bazi_info, bazi_info_gpt, conversation_id)
+            first_reply = "您好，欢迎使用AI算命。\n" + bazi_info_gpt.split("---------------")[0]
+            bazi_id = tidb_manager.insert_baziInfo(user_id, birthday, bazi_info, bazi_info_gpt, conversation_id,first_reply=first_reply)
         tidb_manager.insert_tg_bot_conversation_user(conversation_id, user_id, bazi_id)
-        res_bazi = output_first()
-        return Response(stream_output(res_bazi,user_id,bazi_info_gpt.split("---------------")[0]), mimetype="text/event-stream")
+        return Response(stream_output("您好，欢迎使用AI算命。\n",user_id,bazi_info_gpt.split("---------------")[0]), mimetype="text/event-stream")
 
     elif matcher_type == 1:
-        match_res = baziMatch(birthday.year,birthday.month,birthday.day,birthday.hour, year,month,day,t_ime)
-        op = options(year=year,month=month,day=day,time=t_ime,n=n)
-        day_lunar = sxtwl.fromSolar(int(op.year), int(op.month), int(op.day))
-        lunar = Lunar.fromYmdHms(day_lunar.getLunarYear(), day_lunar.getLunarMonth(), day_lunar.getLunarDay(),int(op.time), 0, 0)
-        eightWord = lunar.getEightChar()
-        res_bazi = output_first(eightWord)
-        res = baziAnalysis(op)
-        gender = n
-        res_gpt = bazipaipan(year,month,day,t_ime,gender)
-        db_res = "他人/配对者/配对人 的八字背景信息如下:\n"
-        db_res = db_res + res + "\n" + match_res
-        logging.info(f"res is:{res}")
-        db_res_gpt = db_res + res_gpt + "\n" + match_res
-        tidb_manager.insert_baziInfo(user_id, birthday, db_res, db_res_gpt, conversation_id, birthday_match=birthday_match)
-        return Response(stream_output(res_bazi, None,res_gpt.split("---------------")[0]), mimetype="text/event-stream")
-
-
         birthday_user = tidb_manager.select_birthday(user_id)
+        logging.info(f"res is:{birthday_user}")
         n = name_or_gender
         year_match, month_match, day_match, time_match = map(int, birthday.split('-'))
         if matcher_id:
@@ -1101,20 +1100,20 @@ def tg_bot_bazi_insert():
             birthday_match = datetime(year_match, month_match, day_match, time_match)
             matcher_id = tidb_manager.insert_other_human(n, birthday_match, user_id)
         res = baziMatch(birthday_user.year,birthday_user.month,birthday_user.day,birthday_user.hour, year_match,month_match,day_match,time_match)
-        logging.info(f"res is:{res}")
-        match_res = baziMatch(birthday.year,birthday.month,birthday.day,birthday.hour, year,month,day,t_ime)
         op = options(year=year_match,month=month_match,day=day_match,time=time_match,n=n)
-        res_bazi = output_first()
-        res = baziAnalysis(op)
+        # res = baziAnalysis(op)
         gender = n
-        res_gpt = bazipaipan(year,month,day,t_ime,gender)
+        # res_gpt = bazipaipan(year_match, month_match, day_match, time_match,gender)
+        (mingyun_analysis,chushen_analysis),res_gpt = bazipaipan(year,month,day,time,n)
+        res = baziAnalysis(op,mingyun_analysis,chushen_analysis)
         db_res_ = "他人/配对者/配对人 的八字背景信息如下:\n"
-        db_res = db_res_ + res + "\n" + match_res
+        db_res = db_res_ + res + "\n" + res
         logging.info(f"res is:{res}")
-        db_res_gpt = db_res_ + res_gpt + "\n" + match_res
-        bazi_id = tidb_manager.insert_baziInfo(user_id, birthday_user, db_res, db_res_gpt, conversation_id, birthday_match=birthday_match)
+        db_res_gpt = db_res_ + res_gpt + "\n" + res
+        first_reply = "您好，欢迎使用AI算命。\n" + res_gpt.split("---------------")[0]
+        bazi_id = tidb_manager.insert_baziInfo(user_id, birthday_user, db_res, db_res_gpt, conversation_id, birthday_match=birthday_match,matcher_type=matcher_type, matcher_id=matcher_id,first_reply=first_reply)
         tidb_manager.insert_tg_bot_conversation_user(conversation_id, user_id, bazi_id)
-        return Response(stream_output(res_bazi, None,res_gpt.split("---------------")[0]), mimetype="text/event-stream")
+        return Response(stream_output("您好，欢迎使用AI算命。\n", None,res_gpt.split("---------------")[0]), mimetype="text/event-stream")
 
     elif matcher_type==2: # 配对资产
         birthday_user = tidb_manager.select_birthday(user_id)
@@ -1128,7 +1127,7 @@ def tg_bot_bazi_insert():
             matcher_id = tidb_manager.insert_asset(name, birthday_match,user_id=user_id)
         res = baziMatch(birthday_user.year,birthday_user.month,birthday_user.day,birthday_user.hour, year_match,month_match,day_match,time_match,name=name)
         logging.info(f"res is:{res}")
-        bazi_id = tidb_manager.insert_baziInfo(user_id, birthday_user, res, conversation_id, birthday_match=birthday_match, matcher_type=matcher_type, matcher_id=matcher_id)
+        bazi_id = tidb_manager.insert_baziInfo(user_id, birthday_user,res, res, conversation_id, birthday_match=birthday_match, matcher_type=matcher_type, matcher_id=matcher_id,first_reply=res)
         tidb_manager.insert_tg_bot_conversation_user(conversation_id, user_id, bazi_id)
         return Response(stream_output(None, None, res), mimetype="text/event-stream")
     else:
@@ -1145,18 +1144,28 @@ def tg_bot_bazi_info():
         user_id = data.get('user_id')
         matcher_id = data.get('matcher_id')
         matcher_type = data.get('matcher_type')
-
+        name = data.get("name")
         tidb_manager = TiDBManager()
         # 重置当前对话，并获取八字背景信息；重置
         if matcher_type==0: # 获取自己的八字， match
-            bazi_info = tidb_manager.select_baziInfoGPT(user_id=user_id)
+            bazi_info = tidb_manager.select_first_reply(user_id=user_id)
             bazi_id = tidb_manager.select_bazi_id(user_id=user_id)
         # 重置当前对话 其他人
-        else :
-            bazi_info = tidb_manager.select_baziInfoGPT(matcher_id=matcher_id)
+        else:
+            bazi_info = tidb_manager.select_first_reply(matcher_id=matcher_id)
             bazi_id = tidb_manager.select_bazi_id(matcher_id=matcher_id)
-        chat = tg_bot_ChatGPT_assistant(conversation_id)
-        res = chat.reset_conversation()
+            logging.info(f"bazi_id is {bazi_id}")
+        if matcher_type==2:
+            if bazi_info ==False or bazi_id ==False:
+                birthday_match = tidb_manager.select_birthday(matcher_type=2,matcher_id=matcher_id)
+                year_match,month_match,day_match,time_match = birthday_match.year,birthday_match.month,birthday_match.day,birthday_match.hour
+                birthday_user = tidb_manager.select_birthday(user_id)
+                res = baziMatch(birthday_user.year,birthday_user.month,birthday_user.day,birthday_user.hour, year_match,month_match,day_match,time_match,name=name)
+                bazi_id = tidb_manager.insert_baziInfo(user_id, birthday_user,res, res, conversation_id, birthday_match=birthday_match, matcher_type=matcher_type, matcher_id=matcher_id,first_reply=res)
+                tidb_manager.insert_tg_bot_conversation_user(conversation_id, user_id, bazi_id)
+                return Response(stream_output(None, None, res), mimetype="text/event-stream")
+        # chat = tg_bot_ChatGPT_assistant(conversation_id)
+        # res = chat.reset_conversation()
         tidb_manager.insert_tg_bot_conversation_user(conversation_id, user_id, bazi_id)
         return Response(stream_output(None, None, bazi_info), mimetype="text/event-stream")
 

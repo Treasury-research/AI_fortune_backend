@@ -207,73 +207,95 @@ def shishenGPT(shishen):
     比肩：兄弟、公平、竞争、精力。毅力、勤奋、自尊、执行力。兄弟。
     劫财：官非、贫困、破财、疾病。争斗、自我、冲动、直率。克妻。
 
+    十神为：{shishen}
     请根据我发的十神找到对应的解释，然后根据这些解释给出此人命理的详细分析，返回的答案不能出现十神的解释
     注意返回在100-150字
     用json的格式返回. 格式为 {{”response“:十神分析解释}}
     """
-    completion = client.chat.completions.create(
-        model="gpt-3.5-turbo-1106",                                          # 模型选择GPT 3.5 Turbo
-        messages=[{"role": "system", "content": prompt},
-                {"role": "user", "content":f"十神为：{shishen}"}],
-        max_tokens = 2048,
-        temperature = 0,
-        response_format={"type": "json_object"}
-
+    message = client.beta.threads.messages.create(
+        thread_id=thread_id,
+        role="user",
+        content= prompt,
     )
-    string_res = completion.choices[0].message.content.strip()
+    run = client.beta.threads.runs.create( 
+        thread_id=thread_id,
+        assistant_id=assistant_id)
+
+    # 获取gpt的answer
+    while run.status != "completed":
+        run = client.beta.threads.runs.retrieve(
+            thread_id=thread_id,
+            run_id=run.id
+            )
+    messages = client.beta.threads.messages.list(thread_id=thread_id)
+    res = messages.data[0].content[0].text.value
+    string_res = res.strip()
     string_res = json.loads(string_res)
 
     return string_res["response"]
 
 def mingyunGPT(bazi,mingyun):
     prompt = f"""
-    你是个算命大师，我现在会把某个人的八字和命理告诉你
-    请根据我发的八字和命理给出到对应的命运描述，并帮我组织下语言发我白话文，注意不要出现'根据你提供xxx'
-    注意返回在100-150字
-    用json的格式返回. 格式为 {{”response“:命运描述的白话文}}
-    """
-    completion = client.chat.completions.create(
-        model="gpt-3.5-turbo-1106",                                          # 模型选择GPT 3.5 Turbo
-        messages=[{"role": "system", "content": prompt},
-                {"role": "user", "content":f"八字为：{bazi} \n\n 命运为：{mingyun}"}],
-        max_tokens = 2048,
-        temperature = 0,
-        response_format={"type": "json_object"}
-
+            请根据我发的八字和命理给出到对应的命运描述，并帮我组织下语言发我白话文，注意不要出现'根据你提供xxx'
+            命运描述为：{mingyun}
+            注意返回在100-150字
+            用json的格式返回. 格式为 {{”response“:命运描述的白话文}}
+            注意只返回命运信息，其他信息不需要，避免返回'兹八字'，'参考xxx'，'依据八字','八字分析，皆依古籍而论，实际人生，以个人之努力与机遇为转机点。此乃娱乐之辩，切勿过信。'等不相干的言论。            
+            """
+    message = client.beta.threads.messages.create(
+        thread_id=thread_id,
+        role="user",
+        content= prompt,
     )
-    string_res = completion.choices[0].message.content.strip()
+    run = client.beta.threads.runs.create( 
+        thread_id=thread_id,
+        assistant_id=assistant_id)
+
+    # 获取gpt的answer
+    while run.status != "completed":
+        run = client.beta.threads.runs.retrieve(
+            thread_id=thread_id,
+            run_id=run.id
+            )
+    messages = client.beta.threads.messages.list(thread_id=thread_id)
+    res = messages.data[0].content[0].text.value
+    string_res = res.strip()
     string_res = json.loads(string_res)
 
     return string_res["response"]
 
 def chushenGPT(bazi,chushen):
-    prompt = f"""
-    你是个算命大师，我现在会把某个人的八字告诉你
-    请根据我发的八字和出身情况扩写成个人的出身情况
-    注意返回在100-150字
-    注意前后逻辑一致性
-    用json的格式返回. 格式为 {{”response“:出身情况}}
-    """
-    # messages = [{"role": "system", "content": prompt}]
-    # messages.append({"role": "user","content": f"八字为：{bazi} \n\n"})
-    # completion = openai.ChatCompletion.create(
-    #     model="gpt-3.5-turbo-1106",
-    #     messages=messages
-    # )
-    # string_res = completion["choices"][0]["message"]["content"].strip()
-    completion = client.chat.completions.create(
-        model="gpt-3.5-turbo-1106",                                          # 模型选择GPT 3.5 Turbo
-        messages=[{"role": "system", "content": prompt},
-                {"role": "user", "content":f"八字为：{bazi} \n\n出身情况: {chushen}"}],
-        max_tokens = 2048,
-        temperature = 0,
-        response_format={"type": "json_object"}
 
+    prompt = f"""
+            请根据我发的八字和出身情况扩写成个人的出身情况
+            出身情况: {chushen}\n\n
+            注意返回在100-150字
+            注意前后逻辑一致性
+            用json的格式返回. 格式为 {{”response“:出身情况}}
+            注意只返回命运信息，其他信息不需要，避免返回'兹八字'，'参考xxx'，'依据八字','八字分析，皆依古籍而论，实际人生，以个人之努力与机遇为转机点。此乃娱乐之辩，切勿过信。'等不相干的言论。            
+            """
+    message = client.beta.threads.messages.create(
+        thread_id=thread_id,
+        role="user",
+        content= prompt,
     )
-    string_res = completion.choices[0].message.content.strip()
+    run = client.beta.threads.runs.create( 
+        thread_id=thread_id,
+        assistant_id=assistant_id)
+
+    # 获取gpt的answer
+    while run.status != "completed":
+        run = client.beta.threads.runs.retrieve(
+            thread_id=thread_id,
+            run_id=run.id
+            )
+    messages = client.beta.threads.messages.list(thread_id=thread_id)
+    res = messages.data[0].content[0].text.value
+    string_res = res.strip()
     string_res = json.loads(string_res)
 
     return string_res["response"]
+
 import io
 import os
 
@@ -284,8 +306,8 @@ def capture_print(func):
         current_stdout = sys.stdout
         try:
             sys.stdout = captured_output
-            func(*args, **kwargs)
-            return captured_output.getvalue()
+            res = func(*args, **kwargs)
+            return res,captured_output.getvalue()
         finally:
             sys.stdout = current_stdout
     return wrapper
@@ -339,6 +361,20 @@ def bazipaipan(year, month, day, time, gender):
     lunar = Lunar.fromYmdHms(day_lunar.getLunarYear(), day_lunar.getLunarMonth(), day_lunar.getLunarDay(),int(time), 0, 0)
     eightWord = lunar.getEightChar() # 八字
     print("八字：{}".format(eightWord))
+    file_ids = ["file-Ni5nhFHvnu2yqqh9z2f6ELoN","file-3F0BvLqCaSYyxGtMVAi42Dn2","file-Sb3blbOsIFlqU1U40fhgofbJ","file-fzdDakZ3LcPuPaLJ4ZYO2wLV"]
+    assistant = client.beta.assistants.create(
+        name="bazi",
+        instructions=f"""我希望你作为一个八字占卜推理师，按照"年 月 日 时"的排列信息给你八字，然后你对八字进行分析，要求分析尽可能丰富，要求输出使用文言文。可以参考的书籍如《三命通命》等。
+        八字为：{eightWord}
+        """,
+        model="gpt-3.5-turbo-1106",
+        tools=[{"type": "retrieval"}],
+        file_ids=file_ids
+    )
+    assistant_id = assistant.id
+    thread = client.beta.threads.create()
+    thread_id = thread.id
+    global thread_id, assistant_id
 
     gz = day_lunar.getHourGZ(int(time))
     yTG = day_lunar.getYearGZ()
@@ -387,11 +423,9 @@ def bazipaipan(year, month, day, time, gender):
     print("命分析：")
     zhus = [item for item in zip(gans, zhis)]
     sum_index = ''.join([mingzhu, '日', *zhus[3]])
-    print(mingyunGPT(eightWord,summary[sum_index]))
+    mingyun_analysis = mingyunGPT(eightWord,summary[sum_index])
+    print(mingyun_analysis)
     print("出身分析：")
-        # 出身分析
-
-    # 出身分析
 
     scores_table = {
     "正财": (2.5, 2),
@@ -420,8 +454,9 @@ def bazipaipan(year, month, day, time, gender):
         birth = '一般'
     else:
         birth = '寒门'
-    print(chushenGPT(eightWord,birth))
-
+    chushen_analysis = chushenGPT(eightWord,birth)
+    # print(chushenGPT(eightWord,birth))
+    print(chushen_analysis)
     print("---------------")
     print("十神:", end='')
     print('\t'.join(shishen))
@@ -504,7 +539,7 @@ def bazipaipan(year, month, day, time, gender):
         out = out + jia + get_shens(gans, zhis, gan_, zhi_)
         print(out)
 
-
+    return mingyun_analysis,chushen_analysis
 if __name__ =="__main__":
     year = '1991'
     month = '7'
