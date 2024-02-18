@@ -361,6 +361,8 @@ def bazipaipan(year, month, day, time, gender):
     lunar = Lunar.fromYmdHms(day_lunar.getLunarYear(), day_lunar.getLunarMonth(), day_lunar.getLunarDay(),int(time), 0, 0)
     eightWord = lunar.getEightChar() # 八字
     print("八字：{}".format(eightWord))
+    global thread_id, assistant_id
+
     file_ids = ["file-Ni5nhFHvnu2yqqh9z2f6ELoN","file-3F0BvLqCaSYyxGtMVAi42Dn2","file-Sb3blbOsIFlqU1U40fhgofbJ","file-fzdDakZ3LcPuPaLJ4ZYO2wLV"]
     assistant = client.beta.assistants.create(
         name="bazi",
@@ -374,7 +376,6 @@ def bazipaipan(year, month, day, time, gender):
     assistant_id = assistant.id
     thread = client.beta.threads.create()
     thread_id = thread.id
-    global thread_id, assistant_id
 
     gz = day_lunar.getHourGZ(int(time))
     yTG = day_lunar.getYearGZ()
