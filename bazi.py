@@ -18,18 +18,24 @@ from common import *
 from yue import months
 import io
 import os
+import threading
 
 
 import sys
 def capture_print(func):
     def wrapper(*args, **kwargs):
+        lock = threading.Lock()
         captured_output = io.StringIO()
         current_stdout = sys.stdout
         try:
             sys.stdout = captured_output
+            # 获取锁
+            lock.acquire()
             func(*args, **kwargs)
             return captured_output.getvalue()
         finally:
+            # 释放锁
+            lock.release()
             sys.stdout = current_stdout
     return wrapper
 

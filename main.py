@@ -3,6 +3,9 @@ import sxtwl
 import json
 import os
 import time
+import html
+from urllib import parse
+import re
 from flask import Flask, Response, request, stream_with_context, jsonify
 from flask_cors import CORS
 import os
@@ -94,17 +97,25 @@ class TiDBManager:
             else:
                 return False
 
-    def insert_other_human(self, gender, birthday, user_id):
+    def insert_other_human(self, gender, birthday, user_id,name=None):
         # try:
         generated_uuid = str(uuid.uuid4())
         with self.db.cursor() as cursor:
-            # 如果是用户自己导入的资产，那要带上user_id进行存储
-            sql = """
-                INSERT INTO AI_fortune_tg_bot_other_human (id, gender, birthday, user_id)
-                VALUES (%s, %s, %s, %s)
+            if name:
+                sql = """
+                INSERT INTO AI_fortune_tg_bot_other_human (id, gender, birthday, user_id,name)
+                VALUES (%s, %s, %s, %s,%s)
                 ON DUPLICATE KEY UPDATE birthday = VALUES(birthday), gender = VALUES(gender)
                 """
-            cursor.execute(sql, (generated_uuid, gender, birthday, user_id, ))
+                cursor.execute(sql, (generated_uuid, gender, birthday, user_id, name))
+            else:
+                # 如果是用户自己导入的资产，那要带上user_id进行存储
+                sql = """
+                    INSERT INTO AI_fortune_tg_bot_other_human (id, gender, birthday, user_id)
+                    VALUES (%s, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE birthday = VALUES(birthday), gender = VALUES(gender)
+                    """
+                cursor.execute(sql, (generated_uuid, gender, birthday, user_id, ))
         self.db.commit()
         return generated_uuid
         # except:
@@ -112,7 +123,7 @@ class TiDBManager:
 
     def select_other_human(self, user_id):
         with self.db.cursor() as cursor:
-            sql = "SELECT gender, birthday, id FROM AI_fortune_tg_bot_other_human WHERE user_id=%s"
+            sql = "SELECT gender, birthday, id,name FROM AI_fortune_tg_bot_other_human WHERE user_id=%s"
             cursor.execute(sql, (user_id,))
             result = cursor.fetchall()
             if result:
@@ -280,18 +291,18 @@ class TiDBManager:
             else:
                 return False
 
-    def update_bazi_info(self, bazi_info, bazi_id=None, birthday=None,conversation_id = None):
+    def update_bazi_info(self, bazi_info, bazi_id=None, birthday=None,conversation_id = None,bazi_info_gpt=None,first_reply=None):
         with self.db.cursor() as cursor:
             if bazi_id:
                 sql = """
-                    UPDATE AI_fortune_bazi SET birthday = %s, bazi_info = %s WHERE id = %s 
+                    UPDATE AI_fortune_bazi SET birthday = %s, bazi_info = %s,bazi_info_gpt=%s, first_reply=%s WHERE id = %s 
                     """
-                cursor.execute(sql, (birthday, bazi_info, bazi_id))
+                cursor.execute(sql, (birthday, bazi_info, bazi_info_gpt, first_reply, bazi_id))
             elif conversation_id:
                 sql = """
-                    UPDATE AI_fortune_bazi SET bazi_info = %s WHERE conversation_id = %s 
+                    UPDATE AI_fortune_bazi SET bazi_info = %s,bazi_info_gpt=%s, first_reply=%s, WHERE conversation_id = %s 
                     """
-                cursor.execute(sql, (bazi_info, conversation_id))
+                cursor.execute(sql, (bazi_info, bazi_info_gpt, first_reply, conversation_id))
         self.db.commit()
     def select_bazi_id(self, user_id=None, conversation_id=None, matcher_id=None):
         with self.db.cursor() as cursor:
@@ -845,6 +856,7 @@ def baziAnalysis_stream():
         month = request.get_json().get("month")
         day = request.get_json().get("day")
         time = request.get_json().get("time")
+        name = request.get_json().get("name")
         try:
             year = int(year)
             month = int(month)
@@ -855,7 +867,7 @@ def baziAnalysis_stream():
         n = request.get_json().get("n")
         time = int(int(time.split("-")[0])/2  + int(time.split("-")[1]) / 2 ) # 提取开始小时
         op = options(year=year,month=month,day=day,time=time,g=g,b=b,n=n,r=r)
-        (mingyun_analysis,chushen_analysis),bazi_info_gpt = bazipaipan(year,month,day,time,n)
+        (mingyun_analysis,chushen_analysis),bazi_info_gpt = bazipaipan(year,month,day,time,n,name=name)
         bazi_info = baziAnalysis(op,mingyun_analysis,chushen_analysis)
         user_id = str(uuid.uuid4())
         tidb_manager = TiDBManager()
@@ -890,6 +902,7 @@ def baziMatchRes():
         data = request.get_json()
         logging.info(f"data is :{data}")
         year,month,day,t_ime,user_id,n = data['year'], data['month'], data['day'], data['time'], data['user_id'], data['n']
+        name = data.get("name")
         matcher_type = data["matcher_type"]
         try:
             year = int(year)
@@ -906,7 +919,7 @@ def baziMatchRes():
             match_res = baziMatch(birthday.year,birthday.month,birthday.day,birthday.hour, year,month,day,t_ime)
             op = options(year=year,month=month,day=day,time=t_ime,n=n)
             gender = n
-            (mingyun_analysis,chushen_analysis),res_gpt = bazipaipan(year,month,day,t_ime,gender)
+            (mingyun_analysis,chushen_analysis),res_gpt = bazipaipan(year,month,day,t_ime,gender,name)
             res = baziAnalysis(op,mingyun_analysis,chushen_analysis)
             db_res = "他人/配对者/配对人 的八字背景信息如下:\n"
             db_res = db_res + res + "\n" + match_res
@@ -943,7 +956,7 @@ def chat_bazi():
     user_message = data.get('message')
 
     # Initialize or retrieve existing ChatGPT instance for the user
-    chat = ChatGPT_assistant(conversation_id)
+    chat = ChatGPT_assistant(conversation_id,matcher_type=0)
     logging.info(f"conversation_id {conversation_id}, message {user_message}")
     return Response(chat.ask_gpt_stream(user_message), mimetype="text/event-stream")
 
@@ -1059,7 +1072,9 @@ def tg_bot_bazi_insert():
     birthday = data.get('birthday') # 格式：2000-5-5-10
     conversation_id = data.get('conversation_id')
     matcher_type = data.get('matcher_type')
-    name_or_gender = data.get('name_or_gender') # gender:true代表女 false代表男 name直接输入名字
+    gender = data.get("gender")
+    name = data.get("name")
+    # name_or_gender = data.get('name_or_gender') # gender:true代表女 false代表男 name直接输入名字
     user_id = data.get('user_id')
     matcher_id = data.get('matcher_id')
 
@@ -1067,7 +1082,7 @@ def tg_bot_bazi_insert():
     # 如果matcher_type 是0代表本人，是1，代表其他人， 2代表资产(int)
     if matcher_type == 0:
         # 插入自己八字
-        n = name_or_gender
+        n = gender
         year, month, day, time = map(int, birthday.split('-'))
         op = options(year=year,month=month,day=day,time=time,n=n)
         # bazi_info = baziAnalysis(op)
@@ -1075,15 +1090,15 @@ def tg_bot_bazi_insert():
         bazi_id = tidb_manager.select_bazi_id(user_id=user_id)
 
         # bazi_info_gpt = bazipaipan(year,month,day,time,n)
-        (mingyun_analysis,chushen_analysis),bazi_info_gpt = bazipaipan(year,month,day,time,n)
+        (mingyun_analysis,chushen_analysis),bazi_info_gpt = bazipaipan(year,month,day,time,n,name=name,tg_bot=True)
         bazi_info = baziAnalysis(op,mingyun_analysis,chushen_analysis)
+        first_reply = "您好，欢迎使用AI算命。\n" + bazi_info_gpt.split("---------------")[0]
 
         user_id = user_id
         tidb_manager = TiDBManager()
         if bazi_id:
-            tidb_manager.update_bazi_info(birthday, bazi_info, bazi_id)
+            tidb_manager.update_bazi_info(birthday=birthday, bazi_info=bazi_info, bazi_info_gpt=bazi_info_gpt,bazi_id=bazi_id,first_reply=first_reply)
         else:
-            first_reply = "您好，欢迎使用AI算命。\n" + bazi_info_gpt.split("---------------")[0]
             bazi_id = tidb_manager.insert_baziInfo(user_id, birthday, bazi_info, bazi_info_gpt, conversation_id,first_reply=first_reply)
         tidb_manager.insert_tg_bot_conversation_user(conversation_id, user_id, bazi_id)
         return Response(stream_output("您好，欢迎使用AI算命。\n",user_id,bazi_info_gpt.split("---------------")[0]), mimetype="text/event-stream")
@@ -1091,20 +1106,19 @@ def tg_bot_bazi_insert():
     elif matcher_type == 1:
         birthday_user = tidb_manager.select_birthday(user_id)
         logging.info(f"res is:{birthday_user}")
-        n = name_or_gender
+        n = gender
         year_match, month_match, day_match, time_match = map(int, birthday.split('-'))
         if matcher_id:
             birthday_match = tidb_manager.select_birthday(matcher_type=1,matcher_id=matcher_id)
             year_match,month_match,day_match,time_match = birthday_match.year,birthday_match.month,birthday_match.day,birthday_match.hour
         else:
             birthday_match = datetime(year_match, month_match, day_match, time_match)
-            matcher_id = tidb_manager.insert_other_human(n, birthday_match, user_id)
+            matcher_id = tidb_manager.insert_other_human(n, birthday_match, user_id,name=name)
         res = baziMatch(birthday_user.year,birthday_user.month,birthday_user.day,birthday_user.hour, year_match,month_match,day_match,time_match)
         op = options(year=year_match,month=month_match,day=day_match,time=time_match,n=n)
         # res = baziAnalysis(op)
-        gender = n
         # res_gpt = bazipaipan(year_match, month_match, day_match, time_match,gender)
-        (mingyun_analysis,chushen_analysis),res_gpt = bazipaipan(year,month,day,time,n)
+        (mingyun_analysis,chushen_analysis),res_gpt = bazipaipan(year_match,month_match,day_match,time_match,gender,name=name,tg_bot=True)
         res = baziAnalysis(op,mingyun_analysis,chushen_analysis)
         db_res_ = "他人/配对者/配对人 的八字背景信息如下:\n"
         db_res = db_res_ + res + "\n" + res
@@ -1117,7 +1131,6 @@ def tg_bot_bazi_insert():
 
     elif matcher_type==2: # 配对资产
         birthday_user = tidb_manager.select_birthday(user_id)
-        name = name_or_gender
         year_match, month_match, day_match, time_match = map(int, birthday.split('-'))
         if matcher_id:
             birthday_match = tidb_manager.select_birthday(matcher_type=2,matcher_id=matcher_id)
@@ -1169,8 +1182,23 @@ def tg_bot_bazi_info():
         tidb_manager.insert_tg_bot_conversation_user(conversation_id, user_id, bazi_id)
         return Response(stream_output(None, None, bazi_info), mimetype="text/event-stream")
 
+@app.route('/api/translate',methods=['POST'])
+def translate():
+    GOOGLE_TRANSLATE_URL = 'http://translate.google.com/m?q=%s&tl=%s&sl=%s'
+    request_data = request.get_json()
+    text = request_data.get('text')
+    text = parse.quote(text)
+    url = GOOGLE_TRANSLATE_URL % (text,"en","zh-CN")
+    response = requests.get(url)
+    data = response.text
+    expr = r'(?s)class="(?:t0|result-container)">(.*?)<'
+    result = re.findall(expr, data)
+    if (len(result) == 0):
+        res = ""
+    else:
+        res = html.unescape(result[0])
+    return Response(stream_output(None, None, res), mimetype="text/event-stream")
 
-            
 @app.route('/test')
 def test():
     return jsonify({"res":"test!"})
