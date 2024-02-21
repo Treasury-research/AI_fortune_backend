@@ -865,7 +865,10 @@ def baziAnalysis_stream():
             return jsonify({"error":"无效的数据格式"}, 400)
         conversation_id = request.get_json().get("conversation_id")
         n = request.get_json().get("n")
-        time = int(int(time.split("-")[0])/2  + int(time.split("-")[1]) / 2 ) # 提取开始小时
+        if int(time.split("-")[0])>=23:
+            time = 0
+        else:
+            time = int(int(time.split("-")[0])/2  + int(time.split("-")[1]) / 2 ) # 提取开始小时
         op = options(year=year,month=month,day=day,time=time,g=g,b=b,n=n,r=r)
         (mingyun_analysis,chushen_analysis),bazi_info_gpt = bazipaipan(year,month,day,time,n,name=name)
         bazi_info = baziAnalysis(op,mingyun_analysis,chushen_analysis)
@@ -911,7 +914,10 @@ def baziMatchRes():
         except:
             return jsonify({"error":"无效的数据格式"}, 400)
         conversation_id = request.get_json().get("conversation_id")
-        t_ime = int(int(t_ime.split("-")[0])/2  + int(t_ime.split("-")[1]) / 2 ) # 提取开始小时
+        if int(t_ime.split("-")[0])>=23:
+            t_ime = 0
+        else:
+            t_ime = int(int(t_ime.split("-")[0])/2  + int(t_ime.split("-")[1]) / 2 ) # 提取开始小时
         birthday = tidb_manager.select_birthday(user_id)
         birthday_match = datetime(year, month, day, t_ime)
 
