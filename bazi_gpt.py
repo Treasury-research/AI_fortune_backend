@@ -224,7 +224,7 @@ def get_second_bracket_value(s):
     # 返回第二对花括号中的内容
     return s[second_start_index:second_end_index]
 
-def shishenGPT(shishen):
+def shishenGPT(shishen,sex):
     prompt = f"""
     你是个算命大师，我现在会把某个人的十神告诉你，十神对应的含义是:
 
@@ -241,6 +241,8 @@ def shishenGPT(shishen):
 
     请根据我发的十神找到对应的解释，然后根据这些解释给出此人命理的详细分析，返回的答案不能出现十神的解释
     注意返回在100-150字
+    注意此人的性别是{sex}
+    回答时，如果性别是女，用她。性别是男，用他。
     用json的格式返回. 格式为 {{”response“:十神分析解释}}
     """
     completion = client.chat.completions.create(
@@ -257,13 +259,15 @@ def shishenGPT(shishen):
 
     return string_res["response"]
 
-def xinggeGPT(bazi,shishen,wuxing):
+def xinggeGPT(bazi,shishen,wuxing,sex):
     prompt = f"""
     你是个算命大师负主要负责个人性格推理分析。我现在会把八字、五行、十神告诉你，你需要结合八字、五行、十神推测出此人的性格。
     不要出现五行的分析情况
     不要出现"xx相生相克"的分析情况
     不要出现'根据八字、五行和十神的信息分析'等字眼
     注意返回在100-150字
+    注意此人的性别是{sex}
+    回答时，如果性别是女，用她。性别是男，用他。
     用json的格式返回. 格式为 {{”response“:性格分析}}
     """
     completion = client.chat.completions.create(
@@ -280,13 +284,15 @@ def xinggeGPT(bazi,shishen,wuxing):
 
     return string_res["response"]
 
-def caiyunGPT(bazi,shishen,wuxing):
+def caiyunGPT(bazi,shishen,wuxing,sex):
     prompt = f"""
     你是个算命大师负主要负责个人财运分析。我现在会把八字、五行、十神告诉你，你需要结合八字、五行、十神推测出此人的财运情况。
     不要出现五行的分析情况
     不要出现"xx相生相克"的分析情况
     不要出现'根据八字、五行和十神的信息分析'等字眼
     注意返回在100-150字
+    注意此人的性别是{sex}
+    回答时，如果性别是女，用她。性别是男，用他。
     用json的格式返回. 格式为 {{”response“:财运分析情况}}
     """
     completion = client.chat.completions.create(
@@ -303,12 +309,14 @@ def caiyunGPT(bazi,shishen,wuxing):
 
     return string_res["response"]
 
-def yinyuanGPT(bazi,shishen,wuxing):
+def yinyuanGPT(bazi,shishen,wuxing,sex):
     prompt = f"""
     你是个算命大师负主要负责个人姻缘情况分析。我现在会把八字、五行、十神告诉你，你需要结合八字、五行、十神推测出此人的姻缘情况。
     不要出现'根据八字和十神的信息分析'等字眼
     不要出现五行的分析情况
     不要出现"xx相生相克"的分析情况
+    注意此人的性别是{sex}
+    回答时，如果性别是女，用她。性别是男，用他。
     注意返回在100-150字
     用json的格式返回. 格式为 {{”response“:姻缘分析情况}}
     """
@@ -325,11 +333,13 @@ def yinyuanGPT(bazi,shishen,wuxing):
     string_res = json.loads(string_res)
 
     return string_res["response"]
-def mingyunGPT(bazi,mingyun):
+def mingyunGPT(bazi,mingyun,sex):
     prompt = f"""
     你是个算命大师，我现在会把某个人的八字和命理告诉你
     请根据我发的八字和命理给出到对应的命运描述，并帮我组织下语言发我白话文，注意不要出现'根据你提供xxx'
     注意返回在100-150字
+    注意此人的性别是{sex}
+    回答时，如果性别是女，用她。性别是男，用他。
     用json的格式返回. 格式为 {{”response“:命运描述的白话文}}
     """
     completion = client.chat.completions.create(
@@ -346,10 +356,12 @@ def mingyunGPT(bazi,mingyun):
 
     return string_res["response"]
 
-def chushenGPT(bazi,chushen):
+def chushenGPT(bazi,chushen,sex):
     prompt = f"""
     你是个算命大师，我现在会把某个人的八字告诉你
     请根据我发的八字和出身情况扩写成个人的出身情况
+    注意此人的性别是{sex}
+    回答时，如果性别是女，用她。性别是男，用他。
     注意返回在100-150字
     注意前后逻辑一致性
     用json的格式返回. 格式为 {{”response“:出身情况}}
@@ -533,9 +545,9 @@ def bazipaipan(year, month, day, time, gender,name=None,tg_bot=False):
     if sum_index in summarys:
         # print("\n\n命")    
         # print("=========================")      
-        mingyun_analysis = mingyunGPT(eightWord,summary[sum_index])
+        mingyun_analysis = mingyunGPT(eightWord,summary[sum_index],sex)
     else:
-        mingyun_analysis = mingyunGPT(eightWord,f"此人生于{sum_index}")
+        mingyun_analysis = mingyunGPT(eightWord,f"此人生于{sum_index}",sex)
 
     print(mingyun_analysis)
     # print("出身分析：")
@@ -567,19 +579,19 @@ def bazipaipan(year, month, day, time, gender,name=None,tg_bot=False):
         birth = '一般'
     else:
         birth = '寒门'
-    chushen_analysis = chushenGPT(eightWord,birth)
+    chushen_analysis = chushenGPT(eightWord,birth,sex)
     # chushen_analysis = chushenGPT(eightWord,summary[sum_index])
     # print(chushenGPT(eightWord,birth))
     # print(chushen_analysis)
     print(f"{start}生肖分析：{end}\n{sx_xingge[zodiac]}")
     print(f"{start}财运分析：{end}")
-    caiyun_analysis = caiyunGPT(eightWord,shishen,scores)
+    caiyun_analysis = caiyunGPT(eightWord,shishen,scores,sex)
     print(caiyun_analysis)
     print(f"{start}姻缘分析：{end}")
-    yinyuan_analysis = yinyuanGPT(eightWord,shishen,scores)
+    yinyuan_analysis = yinyuanGPT(eightWord,shishen,scores,sex)
     print(yinyuan_analysis)
     print(f"{start}性格分析：{end}")
-    xingge_analysis = xinggeGPT(eightWord,shishen,scores)
+    xingge_analysis = xinggeGPT(eightWord,shishen,scores,sex)
     print(xingge_analysis)
     print("---------------")
     print("十神:", end='')
@@ -588,7 +600,7 @@ def bazipaipan(year, month, day, time, gender,name=None,tg_bot=False):
     for ss in shishen:
         print(f"\t{ss}:{shishen_shensha[ss]}")
     print("十神分析：")
-    print(shishenGPT(shishen))
+    print(shishenGPT(shishen,sex))
     sum_index = ''.join([mingzhu, '日', *zhus[3]])
     print(sum_index)
     print(summary[sum_index])

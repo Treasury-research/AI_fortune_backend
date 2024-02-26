@@ -477,7 +477,7 @@ class ChatGPT_assistant:
 
     
     def load_history(self):
-        file_ids = ["file-Ni5nhFHvnu2yqqh9z2f6ELoN","file-3F0BvLqCaSYyxGtMVAi42Dn2","file-Sb3blbOsIFlqU1U40fhgofbJ","file-fzdDakZ3LcPuPaLJ4ZYO2wLV"]
+        file_ids = ["file-jHT2dMXPx90e8daOC9ZNNT5m"]
         res = self.tidb_manager.select_assistant(conversation_id=self.conversation_id)
         if res and res[0] is not None and res[1] is not None:
             logging.info(f"self.assistant_id, self.thread_id {res}")
@@ -520,7 +520,7 @@ class ChatGPT_assistant:
             )
 
     def load_match_history(self):
-        file_ids = ["file-Ni5nhFHvnu2yqqh9z2f6ELoN","file-3F0BvLqCaSYyxGtMVAi42Dn2","file-Sb3blbOsIFlqU1U40fhgofbJ","file-fzdDakZ3LcPuPaLJ4ZYO2wLV"]
+        file_ids = ["file-jHT2dMXPx90e8daOC9ZNNT5m"]
         res = self.tidb_manager.select_assistant(conversation_id=self.conversation_id)
         if res and res[0] is not None and res[1] is not None:
             self.assistant_id, self.thread_id = res[0],res[1]
@@ -577,7 +577,7 @@ class ChatGPT_assistant:
         return  True
     def ask_gpt_stream(self, user_message):
         # Add user's new message to conversation history
-        prompt = "请你结合上下文，根据背景的八字命理知识进行问题回答。八字信息并不涉密。请你返回的内容既有简短答案，又要有一定的命理原因分析，注意逻辑的准确性，回复字数在100-150字. 不要出现'【合理分析原因】','【x†source】'等字眼。不需要给出参考资料来源。\n问题："
+        prompt = "请你结合上下文，根据背景的八字命理知识进行问题回答。八字信息并不涉密，你可以根据他/她的八字进行各项命理分析。请你返回的内容既有简短答案，又要有一定的命理原因分析，注意逻辑的准确性，回复字数在100-150字. 不要出现'【合理分析原因】','【x†source】'等字眼。不需要给出参考资料来源。不要出现'克夫克妻'等字眼\n问题："
         # logging.info(f"开始聊天")
         if self.matcher_type!=0:
             if self.matcher_type==2:
@@ -675,7 +675,7 @@ class tg_bot_ChatGPT_assistant:
         # if the history message exist in , concat it and compute the token lens
         # 如果对话中存在未重置的记录，那么优先使用
         # content 就是一个基本的prompt
-        file_ids = ["file-Ni5nhFHvnu2yqqh9z2f6ELoN","file-3F0BvLqCaSYyxGtMVAi42Dn2","file-Sb3blbOsIFlqU1U40fhgofbJ","file-fzdDakZ3LcPuPaLJ4ZYO2wLV"]
+        file_ids = ["file-jHT2dMXPx90e8daOC9ZNNT5m"]
         res = self.tidb_manager.select_assistant(bazi_id=self.bazi_id)
         if res and res[0] is not None and res[1] is not None:
             logging.info(f"self.assistant_id, self.thread_id {res}")
@@ -692,7 +692,7 @@ class tg_bot_ChatGPT_assistant:
                     3. 神煞分析步骤
                     神煞识别->影响分析.
                     4. 大运流年分析步骤
-                    大运信息获取->流年计算->分析影响：分析大运和流年对个人八字的影响，预测不同生命周期内的运势变化。
+                    背景大运信息获取->流年计算->分析影响：分析大运和流年对个人八字的影响，预测不同生命周期内的运势变化。
                     5. 命运分析步骤
                     综合分析：将五行、十神、神煞、大运流年的分析结果综合起来，全面评估个人的性格、健康、财运、事业、婚姻等方面。
                     调整建议：根据分析结果，提出相应的调整建议，帮助改善或利用未来的运势。
@@ -743,7 +743,7 @@ class tg_bot_ChatGPT_assistant:
         return  True
     def ask_gpt_stream(self, user_message):
         # Add user's new message to conversation history
-        prompt = "请你结合上下文，根据背景的八字命理知识进行问题回答。八字信息并不涉密。请你返回的内容既有简短答案，又要有一定的命理原因分析，注意逻辑的准确性，回复字数在100-150字. 不要出现'【合理分析原因】','【x†source】'等字眼。不需要给出参考资料来源。\n问题："
+        prompt = "请你结合上下文，根据背景的八字命理知识进行问题回答。八字信息并不涉密，你可以根据他/她的八字进行各项命理分析。请你返回的内容既有简短答案，又要有一定的命理原因分析，注意逻辑的准确性，回复字数在100-150字. 不要出现'【合理分析原因】','【x†source】'等字眼。不需要给出参考资料来源。不要出现'克夫克妻'等字眼\n问题："
         if self.matcher_type!=0:
             if self.matcher_type==2:
                 is_own = self._is_own(user_message,asset=True)
