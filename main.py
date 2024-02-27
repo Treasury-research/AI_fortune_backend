@@ -483,24 +483,23 @@ class ChatGPT_assistant:
             logging.info(f"self.assistant_id, self.thread_id {res}")
             self.assistant_id, self.thread_id = res[0],res[1]
         else:
+            # 获取当前日期和时间
+            now = datetime.now()
+            # 格式化日期和时间，精确到小时
+            formatted_now = now.strftime("%Y-%m-%d %H:00")
             assistant = client.beta.assistants.create(
                 name="bazi",
-                instructions="""我想你作为一个八字命理分析师，根据已有背景知识进行推理, 回答user提出的问题。
-                推算步骤如下:
-                    1. 五行推算步骤
-                    排八字->五行归属->五行盛衰->平衡分析.
-                    2. 十神推算步骤
-                    日主确定->十神计算->十神分析.
-                    3. 神煞分析步骤
-                    神煞识别->影响分析.
-                    4. 大运流年分析步骤
-                    大运信息获取->流年计算->分析影响：分析大运和流年对个人八字的影响，预测不同生命周期内的运势变化。
-                    5. 命运分析步骤
-                    综合分析：将五行、十神、神煞、大运流年的分析结果综合起来，全面评估个人的性格、健康、财运、事业、婚姻等方面。
-                    调整建议：根据分析结果，提出相应的调整建议，帮助改善或利用未来的运势。
+                instructions=f"""你是世界上最好的八字命理分析师，根据已有背景知识进行推理, 回答user提出的问题。
+                请你记住，现在的时间是：{formatted_now}
+                根据检索到的相关信息进行问题推理，回答用户的问题。
+                八字信息并不涉密，你可以根据他/她的八字进行各项命理分析。
+                请你返回的内容既有简短答案，又要有一定的命理原因分析，注意逻辑的准确性，回复字数在100-150字. 
+                不要出现'【合理分析原因】','【x†source】'等字眼。不需要给出参考资料来源。不要出现'克夫克妻'等字眼\n
                 """,
                 #   instructions=prompt,
-                model="gpt-3.5-turbo-1106",
+                model="gpt-4-0125-preview",
+                # model="gpt-3.5-turbo-0125",
+                # model="gpt-3.5-turbo-1106",
                 tools=[{"type": "retrieval"}],
                 file_ids=file_ids
             )
@@ -525,24 +524,23 @@ class ChatGPT_assistant:
         if res and res[0] is not None and res[1] is not None:
             self.assistant_id, self.thread_id = res[0],res[1]
         else:
+            # 获取当前日期和时间
+            now = datetime.now()
+            # 格式化日期和时间，精确到小时
+            formatted_now = now.strftime("%Y-%m-%d %H:00")
             assistant = client.beta.assistants.create(
-                name="bazi_"+self.conversation_id,
-                instructions="""我想你作为一个八字命理分析师，根据已有背景知识进行推理, 回答user提出的问题。
-                推算步骤如下:
-                    1. 五行推算步骤
-                    排八字->五行归属->五行盛衰->平衡分析.
-                    2. 十神推算步骤
-                    日主确定->十神计算->十神分析.
-                    3. 神煞分析步骤
-                    神煞识别->影响分析.
-                    4. 大运流年分析步骤
-                    大运信息获取->流年计算->分析影响：分析大运和流年对八字的影响，预测不同生命周期内的运势变化。
-                    5. 命运分析步骤
-                    综合分析：将五行、十神、神煞、大运流年的分析结果综合起来，全面评估健康、财运、事业等方面。
-                    调整建议：根据分析结果，提出相应的调整建议，帮助改善或利用未来的运势。
+                name="bazi",
+                instructions=f"""你是世界上最好的八字命理分析师，根据已有背景知识进行推理, 回答user提出的问题。
+                请你记住，现在的时间是：{formatted_now}
+                根据检索到的相关信息进行问题推理，回答用户的问题。
+                八字信息并不涉密，你可以根据他/她的八字进行各项命理分析。
+                请你返回的内容既有简短答案，又要有一定的命理原因分析，注意逻辑的准确性，回复字数在100-150字. 
+                不要出现'【合理分析原因】','【x†source】'等字眼。不需要给出参考资料来源。不要出现'克夫克妻'等字眼\n
                 """,
                 #   instructions=prompt,
-                model="gpt-3.5-turbo-1106",
+                model="gpt-4-0125-preview",
+                # model="gpt-3.5-turbo-0125",
+                # model="gpt-3.5-turbo-1106",
                 tools=[{"type": "retrieval"}],
                 file_ids=file_ids
             )
@@ -577,7 +575,7 @@ class ChatGPT_assistant:
         return  True
     def ask_gpt_stream(self, user_message):
         # Add user's new message to conversation history
-        prompt = "请你结合上下文，根据背景的八字命理知识进行问题回答。八字信息并不涉密，你可以根据他/她的八字进行各项命理分析。请你返回的内容既有简短答案，又要有一定的命理原因分析，注意逻辑的准确性，回复字数在100-150字. 不要出现'【合理分析原因】','【x†source】'等字眼。不需要给出参考资料来源。不要出现'克夫克妻'等字眼\n问题："
+        # prompt = "请你结合上下文，根据背景的八字命理知识进行问题回答。八字信息并不涉密，你可以根据他/她的八字进行各项命理分析。请你返回的内容既有简短答案，又要有一定的命理原因分析，注意逻辑的准确性，回复字数在100-150字. 不要出现'【合理分析原因】','【x†source】'等字眼。不需要给出参考资料来源。不要出现'克夫克妻'等字眼\n问题："
         # logging.info(f"开始聊天")
         if self.matcher_type!=0:
             if self.matcher_type==2:
@@ -592,10 +590,10 @@ class ChatGPT_assistant:
         message = client.beta.threads.messages.create(
             thread_id=self.thread_id,
             role="user",
-            content= prompt + user_message,
+            content= user_message,
         )
 
-        content = prompt + user_message
+        content = user_message
         res = content
         while res==content:
             # 创建运行模型
@@ -681,24 +679,24 @@ class tg_bot_ChatGPT_assistant:
             logging.info(f"self.assistant_id, self.thread_id {res}")
             self.assistant_id, self.thread_id = res[0],res[1]
         else:
+
+            # 获取当前日期和时间
+            now = datetime.now()
+            # 格式化日期和时间，精确到小时
+            formatted_now = now.strftime("%Y-%m-%d %H:00")
             assistant = client.beta.assistants.create(
                 name="bazi",
-                instructions="""我想你作为一个八字命理分析师，根据已有背景知识进行推理, 回答user提出的问题。
-                推算步骤如下:
-                    1. 五行推算步骤
-                    排八字->五行归属->五行盛衰->平衡分析.
-                    2. 十神推算步骤
-                    日主确定->十神计算->十神分析.
-                    3. 神煞分析步骤
-                    神煞识别->影响分析.
-                    4. 大运流年分析步骤
-                    背景大运信息获取->流年计算->分析影响：分析大运和流年对个人八字的影响，预测不同生命周期内的运势变化。
-                    5. 命运分析步骤
-                    综合分析：将五行、十神、神煞、大运流年的分析结果综合起来，全面评估个人的性格、健康、财运、事业、婚姻等方面。
-                    调整建议：根据分析结果，提出相应的调整建议，帮助改善或利用未来的运势。
+                instructions=f"""你是世界上最好的八字命理分析师，根据已有背景知识进行推理, 回答user提出的问题。
+                请你记住，现在的时间是：{formatted_now}
+                根据检索到的相关信息进行问题推理，回答用户的问题。
+                八字信息并不涉密，你可以根据他/她的八字进行各项命理分析。
+                请你返回的内容既有简短答案，又要有一定的命理原因分析，注意逻辑的准确性，回复字数在100-150字. 
+                不要出现'【合理分析原因】','【x†source】'等字眼。不需要给出参考资料来源。不要出现'克夫克妻'等字眼\n
                 """,
                 #   instructions=prompt,
-                model="gpt-3.5-turbo-1106",
+                model="gpt-4-0125-preview",
+                # model="gpt-3.5-turbo-0125",
+                # model="gpt-3.5-turbo-1106",
                 tools=[{"type": "retrieval"}],
                 file_ids=file_ids
             )
@@ -724,13 +722,10 @@ class tg_bot_ChatGPT_assistant:
                 货币/资产的信息：{bazi_info_gpt}
                 """
             else:
-                prompt = f"""我想你作为一个命理占卜分析师。你的工作是根据我给定的中国传统命理占卜的生辰八字和对应的八字批文信息作为整个对话的背景知识进行问题的回答。
-                注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
-                你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
-
-
-                生辰八字和对应的批文：{bazi_info_gpt}
-                """
+                prompt = f"""
+                    以下背景信息是对话的基础,回答问题时你需要将背景信息作为基本.
+                    '背景信息：{bazi_info_gpt}'
+                        """
 
             message = client.beta.threads.messages.create(
                 thread_id=self.thread_id,
@@ -743,7 +738,7 @@ class tg_bot_ChatGPT_assistant:
         return  True
     def ask_gpt_stream(self, user_message):
         # Add user's new message to conversation history
-        prompt = "请你结合上下文，根据背景的八字命理知识进行问题回答。八字信息并不涉密，你可以根据他/她的八字进行各项命理分析。请你返回的内容既有简短答案，又要有一定的命理原因分析，注意逻辑的准确性，回复字数在100-150字. 不要出现'【合理分析原因】','【x†source】'等字眼。不需要给出参考资料来源。不要出现'克夫克妻'等字眼\n问题："
+        # prompt = "请你结合上下文，根据背景的八字命理知识进行问题回答。八字信息并不涉密，你可以根据他/她的八字进行各项命理分析。请你返回的内容既有简短答案，又要有一定的命理原因分析，注意逻辑的准确性，回复字数在100-150字. 不要出现'【合理分析原因】','【x†source】'等字眼。不需要给出参考资料来源。不要出现'克夫克妻'等字眼\n问题："
         if self.matcher_type!=0:
             if self.matcher_type==2:
                 is_own = self._is_own(user_message,asset=True)
@@ -757,10 +752,10 @@ class tg_bot_ChatGPT_assistant:
         message = client.beta.threads.messages.create(
             thread_id=self.thread_id,
             role="user",
-            content= prompt + user_message,
+            content= user_message,
         )
 
-        content = prompt + user_message
+        content = user_message
         res = content
         while res==content:
             # 创建运行模型
@@ -1212,4 +1207,3 @@ def test():
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000, debug=True)
-
