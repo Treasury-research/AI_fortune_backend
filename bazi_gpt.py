@@ -206,6 +206,26 @@ sx_xingge = {
     '狗':"意志坚定，忠实可靠；正义、公平、敏捷；聪明、有见识，有条理；受人所用，能听话吃苦，注重现实；有时急躁，有盲目倾向，顽固，不计后果，防止被人因小利而亡大义。",
     '猪':"真挚、诚实、有同情心；精力旺盛，待人诚实；专心致志，凡事热心；信任别人，开朗乐观；易动感情，固执保守，目光短浅，有时脾气不稳。" 
 }
+
+nayins = {
+    ('甲', '子'): '海中金', ('乙', '丑'): '海中金', ('壬', '寅'): '金泊金', ('癸', '卯'): '金泊金',
+    ('庚', '辰'): '白蜡金', ('辛', '巳'): '白蜡金', ('甲', '午'): '砂中金', ('乙', '未'): '砂中金',
+    ('壬', '申'): '剑锋金', ('癸', '酉'): '剑锋金', ('庚', '戌'): '钗钏金', ('辛', '亥'): '钗钏金',
+    ('戊', '子'): '霹雳火', ('己', '丑'): '霹雳火', ('丙', '寅'): '炉中火', ('丁', '卯'): '炉中火',
+    ('甲', '辰'): '覆灯火', ('乙', '巳'): '覆灯火', ('戊', '午'): '天上火', ('己', '未'): '天上火',
+    ('丙', '申'): '山下火', ('丁', '酉'): '山下火', ('甲', '戌'): '山头火', ('乙', '亥'): '山头火',
+    ('壬', '子'): '桑柘木', ('癸', '丑'): '桑柘木', ('庚', '寅'): '松柏木', ('辛', '卯'): '松柏木',
+    ('戊', '辰'): '大林木', ('己', '巳'): '大林木', ('壬', '午'): '杨柳木', ('癸', '未'): '杨柳木',
+    ('庚', '申'): '石榴木', ('辛', '酉'): '石榴木', ('戊', '戌'): '平地木', ('己', '亥'): '平地木',
+    ('庚', '子'): '壁上土', ('辛', '丑'): '壁上土', ('戊', '寅'): '城头土', ('己', '卯'): '城头土',
+    ('丙', '辰'): '砂中土', ('丁', '巳'): '砂中土', ('庚', '午'): '路旁土', ('辛', '未'): '路旁土',
+    ('戊', '申'): '大驿土', ('己', '酉'): '大驿土', ('丙', '戌'): '屋上土', ('丁', '亥'): '屋上土',
+    ('丙', '子'): '涧下水', ('丁', '丑'): '涧下水', ('甲', '寅'): '大溪水', ('乙', '卯'): '大溪水',
+    ('壬', '辰'): '长流水', ('癸', '巳'): '长流水', ('丙', '午'): '天河水', ('丁', '未'): '天河水',
+    ('甲', '申'): '井泉水', ('乙', '酉'): '井泉水', ('壬', '戌'): '大海水', ('癸', '亥'): '大海水',    
+}
+gong_he = {"申辰": '子', "巳丑": '酉', "寅戌": '午', "亥未": '卯',
+           "辰申": '子', "丑巳": '酉', "戌寅": '午', "未亥": '卯',}
 def remove_brackets_content(sentence):
     import re
     # 使用正则表达式匹配"【】"及其内部的内容，并将其替换为空
@@ -336,10 +356,11 @@ def yinyuanGPT(bazi,shishen,wuxing,sex):
 def mingyunGPT(bazi,mingyun,sex):
     prompt = f"""
     你是个算命大师，我现在会把某个人的八字和命理告诉你
-    请根据我发的八字和命理给出到对应的命运描述，并帮我组织下语言发我白话文，注意不要出现'根据你提供xxx'
-    注意返回在100-150字
     注意此人的性别是{sex}
     回答时，如果性别是女，用她。性别是男，用他。
+    请根据我发的八字和命理给出到对应的命运描述，并帮我组织下语言发我白话文，注意不要出现'根据你提供xxx'
+    注意返回在100-150字
+    如果性别是女，不要出现妻子之类的话语；如果性别是男，不要出现丈夫之类的话语。
     用json的格式返回. 格式为 {{”response“:命运描述的白话文}}
     """
     completion = client.chat.completions.create(
@@ -466,23 +487,6 @@ def bazipaipan(year, month, day, time, gender,name=None,tg_bot=False):
     print("{}年{}{}月{}日{}时".format(day_lunar.getLunarYear(), Lleap, day_lunar.getLunarMonth(), day_lunar.getLunarDay(),eightWord.getTime()[1]))
 
     print(f"{start}八字：{end}{eightWord}")
-    # global thread_id, assistant_id
-    # thread_id = "thread_pTvxH0cN3W33fF6EKKtYSGX9"
-    # assistant_id = "asst_OocI4we3cxM32ObzxzPT48MS" 
-
-    # file_ids = ["file-Ni5nhFHvnu2yqqh9z2f6ELoN","file-3F0BvLqCaSYyxGtMVAi42Dn2","file-Sb3blbOsIFlqU1U40fhgofbJ","file-fzdDakZ3LcPuPaLJ4ZYO2wLV"]
-    # assistant = client.beta.assistants.create(
-    #     name="bazi",
-    #     instructions=f"""你是一个八字命理分析师。你的职责是通过一个人的八字以及命运来预测他的出身情况。
-    #     """,
-    #     model="gpt-3.5-turbo-1106",
-    #     tools=[{"type": "retrieval"}],
-    #     file_ids=file_ids
-    # )
-    # assistant_id = assistant.id
-    # thread = client.beta.threads.create()
-    # thread_id = thread.id
-    # print(assistant_id,thread_id)
     gz = day_lunar.getHourGZ(int(time))
     yTG = day_lunar.getYearGZ()
     mTG = day_lunar.getMonthGZ()
@@ -531,26 +535,15 @@ def bazipaipan(year, month, day, time, gender,name=None,tg_bot=False):
         print("您八字中五行诸全，五行不缺。")
     else:
         print("您八字中五行相对缺"+"，".join(missing)+"。")
-    # Find the minimum score
-    # min_score = min(scores.values())
-    # Get the key(s) with the minimum score
-    # min_score_keys = [k for k, v in scores.items() if v == min_score]
-    # zero_score_keys = [k for k, v in scores.items() if v == 0]
-    # if zero_score_keys:
-    #     print(f"五行元素中绝对缺失的有： {' '.join(zero_score_keys)}")
-    # print(f"五行元素中相对缺失的有： {' '.join(min_score_keys)}")
     print(f"{start}命理分析：{end}")
     zhus = [item for item in zip(gans, zhis)]
     sum_index = ''.join([mingzhu, '日', *zhus[3]])
-    if sum_index in summarys:
-        # print("\n\n命")    
-        # print("=========================")      
+    if sum_index in summarys:     
         mingyun_analysis = mingyunGPT(eightWord,summary[sum_index],sex)
     else:
         mingyun_analysis = mingyunGPT(eightWord,f"此人生于{sum_index}",sex)
 
     print(mingyun_analysis)
-    # print("出身分析：")
 
     scores_table = {
     "正财": (2.5, 2),
@@ -580,7 +573,6 @@ def bazipaipan(year, month, day, time, gender,name=None,tg_bot=False):
     else:
         birth = '寒门'
     chushen_analysis = chushenGPT(eightWord,birth,sex)
-    # chushen_analysis = chushenGPT(eightWord,summary[sum_index])
     # print(chushenGPT(eightWord,birth))
     # print(chushen_analysis)
     print(f"{start}生肖分析：{end}\n{sx_xingge[zodiac]}")
@@ -605,7 +597,7 @@ def bazipaipan(year, month, day, time, gender,name=None,tg_bot=False):
     print(sum_index)
     print(summary[sum_index])
 
-    print("大运分析：")
+    print("大运流年分析：")
     dayuns = []
     # 计算大运
     seq = Gan.index(gans.year)
@@ -630,7 +622,6 @@ def bazipaipan(year, month, day, time, gender,name=None,tg_bot=False):
     for i in range(30):    
         #print(birthday)
         day_ = sxtwl.fromSolar(birthday.year, birthday.month, birthday.day)
-        #if day_.hasJieQi() and day_.getJieQiJD() % 2 == 1
         if day_.hasJieQi() and day_.getJieQi() % 2 == 1:
                 break
             #break        
@@ -674,6 +665,73 @@ def bazipaipan(year, month, day, time, gender,name=None,tg_bot=False):
         zhi_index = Zhi.index(zhi_)
         out = out + jia + get_shens(gans, zhis, gan_, zhi_)
         print(out)
+        current_year = datetime.datetime.now().year
+        zhis2 = list(zhis) + [zhi_]
+        gans2 = list(gans) + [gan_]
+        if value[0] > 100:
+            continue
+        for i in range(10):
+            _year = value[1] + i
+            if _year<current_year:
+                continue
+            if _year-current_year>20:
+                continue
+
+            day2 = sxtwl.fromSolar(value[1] + i, 5, 1)    
+            yTG = day2.getYearGZ()
+            gan2_ = Gan[yTG.tg]
+            zhi2_ = Zhi[yTG.dz]
+            fu2 = '*' if (gan2_, zhi2_) in zhus else " "
+            #print(fu2, (gan2_, zhi2_),zhus)
+            
+            zhi6_ = ''
+            for gan in zhi5[zhi2_]:
+                zhi6_ = zhi6_ + "{}{}{}　".format(gan, gan5[gan], ten_deities[mingzhu][gan])        
+            
+            # 大运地支关系
+            zhi__ = set() # 大运地支关系
+            for item in zhis2:
+            
+                for type_ in zhi_atts[zhi2_]:
+                    if type_ == '破':
+                        continue
+                    if item in zhi_atts[zhi2_][type_]:
+                        zhi__.add(type_ + ":" + item)
+            zhi__ = '  '.join(zhi__)
+            
+            empty = chr(12288)
+            if zhi2_ in empties[zhus[2]]:
+                empty = '空'       
+            out = "{1:>3d} {2:<5d}{3} {15} {14} {13}  {4}:{5}{8}{6:{0}<6s}{12}{7}{8}{9} - {10:{0}<13s} {11}".format(
+                chr(12288), int(value[0]) + i, value[1] + i, gan2_+zhi2_,ten_deities[mingzhu][gan2_], gan2_,check_gan(gan2_, gans2), 
+                zhi2_, yinyang(zhi2_), ten_deities[mingzhu][zhi2_], zhi6_, zhi__,empty, fu2, nayins[(gan2_, zhi2_)], ten_deities[mingzhu][zhi2_]) 
+            jia = ""
+            if gan2_ in gans2:
+                for i in range(5):
+                    if gan2_ == gans2[i]:
+                        zhi1 = zhis2[i]
+                        if abs(Zhi.index(zhi2_) - Zhi.index(zhis2[i])) == 2:
+                            # print(2, zhi2_, zhis2[i])
+                            jia = jia + "  --夹：" +  Zhi[( Zhi.index(zhi2_) + Zhi.index(zhis2[i]) )//2]
+                        if abs( Zhi.index(zhi2_) - Zhi.index(zhis2[i]) ) == 10:
+                            # print(10, zhi2_, zhis2[i])
+                            jia = jia + "  --夹：" +  Zhi[(Zhi.index(zhi2_) + Zhi.index(zhis2[i]))%12]  
+
+                        if (zhi1 + zhi2_ in gong_he) and (gong_he[zhi1 + zhi2_] not in zhis):
+                            jia = jia + "  --拱：" + gong_he[zhi1 + zhi2_]
+                            
+            out = out + jia + get_shens(gans, zhis, gan2_, zhi2_)
+            all_zhis = set(zhis2) | set(zhi2_)
+            if set('戌亥辰巳').issubset(all_zhis):
+                out = out + "  天罗地网：戌亥辰巳"
+            if set('寅申巳亥').issubset(all_zhis) and len(set('寅申巳亥')&set(zhis)) == 2 :
+                out = out + "  四生：寅申巳亥"   
+            if set('子午卯酉').issubset(all_zhis) and len(set('子午卯酉')&set(zhis)) == 2 :
+                out = out + "  四败：子午卯酉"  
+            if set('辰戌丑未').issubset(all_zhis) and len(set('辰戌丑未')&set(zhis)) == 2 :
+                out = out + "  四库：辰戌丑未"             
+            print(out)
+
 
     return mingyun_analysis,chushen_analysis
 if __name__ =="__main__":

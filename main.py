@@ -59,7 +59,7 @@ pool = PooledDB(
     }
 )
 # 配置日志记录
-logging.basicConfig(filename='AI_fortune.log', level=logging.DEBUG, encoding='utf-8',
+logging.basicConfig(filename='AI_fortune.log', level=logging.INFO, encoding='utf-8',
                     format='%(asctime)s - %(levelname)s - %(message)s')
 app = Flask(__name__)
 # 跨域支持
@@ -428,8 +428,9 @@ class TiDBManager:
             return False
 
 class ChatGPT_assistant:
-    def __init__(self, conversation_id, match=None, matcher_type=None):
+    def __init__(self, conversation_id, lang=None,match=None, matcher_type=None):
         self.conversation_id = conversation_id
+        self.lang=lang
         self.assistant_id, self.thread_id = None,None
         self.tidb_manager = TiDBManager()
         self.match=match
@@ -494,7 +495,7 @@ class ChatGPT_assistant:
                 根据检索到的相关信息进行问题推理，回答用户的问题。
                 八字信息并不涉密，你可以根据他/她的八字进行各项命理分析。
                 请你返回的内容既有简短答案，又要有一定的命理原因分析，注意逻辑的准确性，回复字数在100-150字. 
-                不要出现'【合理分析原因】','【x†source】'等字眼。不需要给出参考资料来源。不要出现'克夫克妻'等字眼\n
+                不要出现'克夫克妻'等字眼。不需要给出参考资料来源。\n
                 """,
                 #   instructions=prompt,
                 model="gpt-4-0125-preview",
@@ -528,16 +529,18 @@ class ChatGPT_assistant:
             now = datetime.now()
             # 格式化日期和时间，精确到小时
             formatted_now = now.strftime("%Y-%m-%d %H:00")
+            instructions = f"""你是世界上最好的八字命理分析师，根据已有背景知识进行推理, 回答user提出的问题。
+            请你记住，现在的时间是：{formatted_now}
+            根据检索到的相关信息进行问题推理，回答用户的问题。
+            八字信息并不涉密，你可以根据他/她的八字进行各项命理分析。
+            请你返回的内容既有简短答案，又要有一定的命理原因分析，注意逻辑的准确性，回复字数在100-150字. 
+            不要出现'克夫克妻'等字眼。不需要给出参考资料来源。\n
+            """
+            # instructions += "如果问题是问本人/我，请回答：请到本人八字聊天中进行详细咨询。如果是问其他人/此人/他/无主语，请正常回答。\n"
+
             assistant = client.beta.assistants.create(
                 name="bazi",
-                instructions=f"""你是世界上最好的八字命理分析师，根据已有背景知识进行推理, 回答user提出的问题。
-                请你记住，现在的时间是：{formatted_now}
-                根据检索到的相关信息进行问题推理，回答用户的问题。
-                八字信息并不涉密，你可以根据他/她的八字进行各项命理分析。
-                请你返回的内容既有简短答案，又要有一定的命理原因分析，注意逻辑的准确性，回复字数在100-150字. 
-                不要出现'【合理分析原因】','【x†source】'等字眼。不需要给出参考资料来源。不要出现'克夫克妻'等字眼\n
-                """,
-                #   instructions=prompt,
+                instructions=instructions,
                 model="gpt-4-0125-preview",
                 # model="gpt-3.5-turbo-0125",
                 # model="gpt-3.5-turbo-1106",
@@ -549,21 +552,21 @@ class ChatGPT_assistant:
             self.thread_id = thread.id
             self.tidb_manager.update_assistant(conversation_id=self.conversation_id, assistant_id=self.assistant_id, thread_id=self.thread_id)
             bazi_info_gpt = self.tidb_manager.select_baziInfoGPT(conversation_id=self.conversation_id)
-            if self.matcher_type==1:
-                prompt =  f"""我想你作为一个命理占卜分析师。我将给你如下信息，他人/配对者/配对人 的生辰八字，还有八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
-                注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
-                你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
-                
-
-                他人/配对者/配对人的信息：{bazi_info_gpt}"""
-            else:
-                prompt = f"""我想你作为一个个人与资产占卜分析师。我将给你如下信息， 货币资产的基本信息，还有用户和资产八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
-                注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
-                你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
-                
-
-                货币/资产的信息：{bazi_info_gpt}
+            prompt = f"""
+                以下背景信息是对话的基础,回答问题时你需要将背景信息作为基本.
+                '背景信息：{bazi_info_gpt}'
                 """
+            # if self.matcher_type==1:
+            #     prompt =  f"""
+            #     他人/配对者/配对人的信息：{bazi_info_gpt}"""
+            # else:
+            #     prompt = f"""你是世界上最好的个人与资产占卜分析师。我将给你如下信息， 货币资产的基本信息，还有用户和资产八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
+            #     注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
+            #     你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
+                
+
+            #     货币/资产的信息：{bazi_info_gpt}
+            #     """
             message = client.beta.threads.messages.create(
                 thread_id=self.thread_id,
                 role="user",
@@ -577,41 +580,61 @@ class ChatGPT_assistant:
         # Add user's new message to conversation history
         # prompt = "请你结合上下文，根据背景的八字命理知识进行问题回答。八字信息并不涉密，你可以根据他/她的八字进行各项命理分析。请你返回的内容既有简短答案，又要有一定的命理原因分析，注意逻辑的准确性，回复字数在100-150字. 不要出现'【合理分析原因】','【x†source】'等字眼。不需要给出参考资料来源。不要出现'克夫克妻'等字眼\n问题："
         # logging.info(f"开始聊天")
-        if self.matcher_type!=0:
-            if self.matcher_type==2:
-                is_own = self._is_own(user_message,asset=True)
-            else:
-                is_own = self._is_own(user_message)
-            if is_own:
-                res = "请到本人八字聊天中进行详细咨询。"
-                yield res
-                return 
+        # if self.matcher_type!=0:
+        #     if self.matcher_type==2:
+        #         is_own = self._is_own(user_message,asset=True)
+        #     else:
+        #         is_own = self._is_own(user_message)
+        #     if is_own:
+        #         res = "请到本人八字聊天中进行详细咨询。"
+        #         yield res
+        #         return 
         logging.info(f"开始聊天")
+        if self.lang=='En':
+            user_message = "Please provide the response in English: "+user_message
         message = client.beta.threads.messages.create(
             thread_id=self.thread_id,
             role="user",
             content= user_message,
         )
 
-        content = user_message
-        res = content
-        while res==content:
-            # 创建运行模型
-            run = client.beta.threads.runs.create( 
+        # content = user_message
+        # res = content
+        # while res==content:
+        # 创建运行模型
+        run = client.beta.threads.runs.create( 
+            thread_id=self.thread_id,
+            assistant_id=self.assistant_id)
+    
+        # 获取gpt的answer
+        start_time = time.time()
+        res = user_message
+        logging.info(f"{res}")
+        while run.status != "completed":
+            logging.info(run.status)
+            current_time = time.time()
+            run = client.beta.threads.runs.retrieve(
                 thread_id=self.thread_id,
-                assistant_id=self.assistant_id)
-        
-            # 获取gpt的answer
-            while run.status != "completed":
-                run = client.beta.threads.runs.retrieve(
-                    thread_id=self.thread_id,
-                    run_id=run.id
-                    )
+                run_id=run.id
+                )
+            # 每10s检测一次是否消息已经生成
+            if current_time - start_time >= 10:
+                messages = get_messages(self.thread_id)
+                if len(messages['data'][0]['content'])>0:
+                    res = messages['data'][0]['content'][0]['text']['value']
+                    if res != user_message:
+                        # 取消当前请求
+                        # cancel_run(thread_id,run_id)
+                        break
+                start_time = time.time()
+            time.sleep(1)
+        logging.info(f"{res}")
+        if res == user_message:
             messages = client.beta.threads.messages.list(thread_id=self.thread_id)
             res = messages.data[0].content[0].text.value
         res = self.remove_brackets_content(res)
-        for item in res:
-            yield item
+        logging.info(f"{res}")
+        yield res
     def remove_brackets_content(self,sentence):
         import re
         # 使用正则表达式匹配"【】"及其内部的内容，并将其替换为空
@@ -621,8 +644,9 @@ class ChatGPT_assistant:
 
 
 class tg_bot_ChatGPT_assistant:
-    def __init__(self, conversation_id):
+    def __init__(self, conversation_id,lang):
         self.conversation_id = conversation_id
+        self.lang = lang
         self.tidb_manager = TiDBManager()
         self.matcher_type, self.matcher_id, self.bazi_id = 0, None, None
         self.assistant_id, self.thread_id = None,None
@@ -638,37 +662,37 @@ class tg_bot_ChatGPT_assistant:
                 logging.info(f"select_match_baziInfo_tg_bot res is :{res}")
                 self.matcher_type, self.matcher_id = res[0], res[1]
 
-    def _is_own(self,message,asset=None):
-        messages = []
-        if asset:
-            return False
-        else:
-            messages.append({"role": "user", "content": f"""
-            你是一个语言专家，我会给你一个语句，请你告诉我这个句子 是指的我本人,还是他人,还是指的我和他人。 如果是本人，返回给我1，如果是他人返回2，如果是我和他人 返回3. 如果没有任何主语返回0
-            另外,当前人属于他人.
-            如:
-            1."我问你这个人的八字，上文有提到" 应该返回2,他人,因为问的是这个人,属于当前人,即为他人
-            2."当前人的八字已经给你了，上面有说，你不知道?" 应该返回2,他人,因为问的是当前人,即为他人
-            3."你知道我的八字吗?" 应该返回1,因为询问的是我的八字,即为本人
-            4."我想问你我两的关系如何" 应该返回 3,我和他人,因为问的是我两
-            5."这是什么东西?" 应该返回0,因为没有任何主语
-            判断一下问题询问的是本人\他人\群体 
-            返回格式是json, 格式如下:
-            {{
-                "type_":"xxxxx"
-            }}
-            问题:{message}"""})
-        rsp = client.chat.completions.create(
-            model="gpt-3.5-turbo-1106",
-            messages=messages,
-            temperature = 0
-        )
-        res = rsp.choices[0].message.content
-        logging.info(f"问题类型:{res}")
-        if '1' in res:
-            return True
-        else:
-            return False
+    # def _is_own(self,message,asset=None):
+    #     messages = []
+    #     if asset:
+    #         return False
+    #     else:
+    #         messages.append({"role": "user", "content": f"""
+    #         你是一个语言专家，我会给你一个语句，请你告诉我这个句子 是指的我本人,还是他人,还是指的我和他人。 如果是本人，返回给我1，如果是他人返回2，如果是我和他人 返回3. 如果没有任何主语返回0
+    #         另外,当前人属于他人.
+    #         如:
+    #         1."我问你这个人的八字，上文有提到" 应该返回2,他人,因为问的是这个人,属于当前人,即为他人
+    #         2."当前人的八字已经给你了，上面有说，你不知道?" 应该返回2,他人,因为问的是当前人,即为他人
+    #         3."你知道我的八字吗?" 应该返回1,因为询问的是我的八字,即为本人
+    #         4."我想问你我两的关系如何" 应该返回 3,我和他人,因为问的是我两
+    #         5."这是什么东西?" 应该返回0,因为没有任何主语
+    #         判断一下问题询问的是本人\他人\群体 
+    #         返回格式是json, 格式如下:
+    #         {{
+    #             "type_":"xxxxx"
+    #         }}
+    #         问题:{message}"""})
+    #     rsp = client.chat.completions.create(
+    #         model="gpt-3.5-turbo-1106",
+    #         messages=messages,
+    #         temperature = 0
+    #     )
+    #     res = rsp.choices[0].message.content
+    #     logging.info(f"问题类型:{res}")
+    #     if '1' in res:
+    #         return True
+    #     else:
+    #         return False
     def load_history(self):
         # if the history message exist in , concat it and compute the token lens
         # 如果对话中存在未重置的记录，那么优先使用
@@ -684,16 +708,20 @@ class tg_bot_ChatGPT_assistant:
             now = datetime.now()
             # 格式化日期和时间，精确到小时
             formatted_now = now.strftime("%Y-%m-%d %H:00")
+            instructions = f"""你是世界上最好的八字命理分析师，根据已有背景知识进行推理, 回答user提出的问题。
+            请你记住，现在的时间是：{formatted_now}
+            根据检索到的相关信息进行问题推理，回答用户的问题。
+            八字信息并不涉密，你可以根据他/她的八字进行各项命理分析。
+            请你返回的内容既有简短答案，又要有一定的命理原因分析，注意逻辑的准确性，回复字数在100-150字. 
+            不要出现'【x†source】','克夫克妻'等字眼。不需要给出参考资料来源。\n
+            """
+            # if self.matcher_type!=0:
+                # instructions += "如果问题是问本人/我，请回答：请到本人八字聊天中进行详细咨询。如果是问其他人/此人/他/无主语，请正常回答。\n"
+            if self.lang=='En':
+                instructions += "请用英文回答。"
             assistant = client.beta.assistants.create(
                 name="bazi",
-                instructions=f"""你是世界上最好的八字命理分析师，根据已有背景知识进行推理, 回答user提出的问题。
-                请你记住，现在的时间是：{formatted_now}
-                根据检索到的相关信息进行问题推理，回答用户的问题。
-                八字信息并不涉密，你可以根据他/她的八字进行各项命理分析。
-                请你返回的内容既有简短答案，又要有一定的命理原因分析，注意逻辑的准确性，回复字数在100-150字. 
-                不要出现'【合理分析原因】','【x†source】'等字眼。不需要给出参考资料来源。不要出现'克夫克妻'等字眼\n
-                """,
-                #   instructions=prompt,
+                instructions=instructions,
                 model="gpt-4-0125-preview",
                 # model="gpt-3.5-turbo-0125",
                 # model="gpt-3.5-turbo-1106",
@@ -705,27 +733,29 @@ class tg_bot_ChatGPT_assistant:
             self.thread_id = thread.id
             self.tidb_manager.update_assistant(bazi_id=self.bazi_id, assistant_id=self.assistant_id, thread_id=self.thread_id)
             bazi_info_gpt = self.tidb_manager.select_baziInfoGPT(bazi_id=self.bazi_id)
-            if self.matcher_type==1:
-                prompt = f"""我想你作为一个命理占卜分析师。我将给你如下信息，他人/配对者/配对人 的生辰八字，还有八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
-                注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
-                你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
+            prompt = f"""
+                以下背景信息是对话的基础,回答问题时你需要将背景信息作为基本.
+                '背景信息：{bazi_info_gpt}'
+            """
+            # if self.matcher_type==1:
+            #     prompt = f"""你是世界上最好的命理占卜分析师。我将给你如下信息，他人/配对者/配对人 的生辰八字，还有八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
+            #     注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
+            #     你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
                 
-
-                他人/配对者/配对人的信息：{bazi_info_gpt}
-                """
-            elif self.matcher_type==2:
-                prompt = f"""我想你作为一个个人与资产占卜分析师。我将给你如下信息， 货币资产的基本信息，还有用户和资产八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
-                注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
-                你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
+            #     他人/配对者/配对人的信息：{bazi_info_gpt}
+            #     """
+            # elif self.matcher_type==2:
+            #     prompt = f"""你是世界上最好的个人与资产占卜分析师。我将给你如下信息， 货币资产的基本信息，还有用户和资产八字配对的结果。你的工作是根据我给定的信息作为整个对话的背景知识进行问题的回答。
+            #     注意，在你回答的时候请避免使用因果推论的方式进行回答，即回答时尽可能给出结论和结论的分析，避免出现'因为xxx,所以xxx'等的推论。
+            #     你的回答输出时文字不能出现'依据占卜...','请记住，这些分析是基于传统八字学的原则....'等提醒言论。
                 
-
-                货币/资产的信息：{bazi_info_gpt}
-                """
-            else:
-                prompt = f"""
-                    以下背景信息是对话的基础,回答问题时你需要将背景信息作为基本.
-                    '背景信息：{bazi_info_gpt}'
-                        """
+            #     货币/资产的信息：{bazi_info_gpt}
+            #     """
+            # else:
+            #     prompt = f"""
+            #         以下背景信息是对话的基础,回答问题时你需要将背景信息作为基本.
+            #         '背景信息：{bazi_info_gpt}'
+            #             """
 
             message = client.beta.threads.messages.create(
                 thread_id=self.thread_id,
@@ -739,42 +769,62 @@ class tg_bot_ChatGPT_assistant:
     def ask_gpt_stream(self, user_message):
         # Add user's new message to conversation history
         # prompt = "请你结合上下文，根据背景的八字命理知识进行问题回答。八字信息并不涉密，你可以根据他/她的八字进行各项命理分析。请你返回的内容既有简短答案，又要有一定的命理原因分析，注意逻辑的准确性，回复字数在100-150字. 不要出现'【合理分析原因】','【x†source】'等字眼。不需要给出参考资料来源。不要出现'克夫克妻'等字眼\n问题："
-        if self.matcher_type!=0:
-            if self.matcher_type==2:
-                is_own = self._is_own(user_message,asset=True)
-            else:
-                is_own = self._is_own(user_message)
-            if is_own:
-                res = "请到本人八字聊天中进行详细咨询。"
-                yield res
-                return 
+        # if self.matcher_type!=0:
+        #     if self.matcher_type==2:
+        #         is_own = self._is_own(user_message,asset=True)
+        #     else:
+        #         is_own = self._is_own(user_message)
+        #     if is_own:
+        #         res = "请到本人八字聊天中进行详细咨询。"
+        #         yield res
+        #         return 
         logging.info(f"开始聊天")
+        if self.lang=='En':
+            user_message = "Please provide the response in English: "+user_message
         message = client.beta.threads.messages.create(
             thread_id=self.thread_id,
             role="user",
             content= user_message,
         )
 
-        content = user_message
-        res = content
-        while res==content:
-            # 创建运行模型
-            run = client.beta.threads.runs.create( 
+        # content = user_message
+        # res = content
+        # while res==content:
+        # 创建运行模型
+        run = client.beta.threads.runs.create( 
+            thread_id=self.thread_id,
+            assistant_id=self.assistant_id)
+        run_id = run.id
+        # 获取gpt的answer
+        # 获取当前时间的时间戳
+        start_time = time.time()
+        res = user_message
+        logging.info(f"{res}")
+        while run.status != "completed":
+            logging.info(run.status)
+            current_time = time.time()
+            run = client.beta.threads.runs.retrieve(
                 thread_id=self.thread_id,
-                assistant_id=self.assistant_id)
-        
-            # 获取gpt的answer
-            while run.status != "completed":
-                run = client.beta.threads.runs.retrieve(
-                    thread_id=self.thread_id,
-                    run_id=run.id
-                    )
+                run_id=run.id
+                )
+            # 每10s检测一次是否消息已经生成
+            if current_time - start_time >= 10:
+                messages = get_messages(self.thread_id)
+                if len(messages['data'][0]['content'])>0:
+                    res = messages['data'][0]['content'][0]['text']['value']
+                    if res != user_message :
+                        # 取消当前请求
+                        # cancel_run(thread_id,run_id)
+                        break
+                start_time = time.time()
+            time.sleep(1)
+        logging.info(f"{res}")
+        if res == user_message:
             messages = client.beta.threads.messages.list(thread_id=self.thread_id)
             res = messages.data[0].content[0].text.value
         res = self.remove_brackets_content(res)
         logging.info(f"{res}")
-        for item in res:
-            yield item
+        yield res
     def remove_brackets_content(self,sentence):
         import re
         # 使用正则表达式匹配"【】"及其内部的内容，并将其替换为空
@@ -833,6 +883,73 @@ def get_coin_data(name):
         return coin_data
     except:
         return None
+def get_messages(thread_id):
+    import http.client
+    import json
+    conn = http.client.HTTPSConnection("api.openai.com")
+    payload = ''
+    headers = {
+    'User-Agent': 'Apifox/1.0.0 (https://apifox.com)',
+    'OpenAI-Beta': 'assistants=v1',
+    'Authorization': 'Bearer '+os.environ["OPENAI_API_KEY"]
+    }
+    conn.request("GET", "/v1/threads/"+thread_id+"/messages", payload, headers)
+    res = conn.getresponse()
+    data = res.read()
+    result = json.loads(data)
+    return result
+
+def cancel_run(thread_id,run_id):
+    import http.client
+
+    conn = http.client.HTTPSConnection("api.openai.com")
+    payload = ''
+    headers = {
+    'User-Agent': 'Apifox/1.0.0 (https://apifox.com)',
+    'OpenAI-Beta': 'assistants=v1',
+    'Authorization': 'Bearer '+os.environ["OPENAI_API_KEY"]
+    }
+    conn.request("POST", "/v1/threads/"+thread_id+"/runs/"+run_id+"/cancel", payload, headers)
+    res = conn.getresponse()
+    data = res.read()
+    logging.info(f"cancel run:{data.decode('utf-8')}")
+
+def translate(text):
+    GOOGLE_TRANSLATE_URL = 'http://translate.google.com/m?q=%s&tl=%s&sl=%s'
+    text = parse.quote(text)
+    url = GOOGLE_TRANSLATE_URL % (text,"en","zh-CN")
+    response = requests.get(url)
+    data = response.text
+    expr = r'(?s)class="(?:t0|result-container)">(.*?)<'
+    result = re.findall(expr, data)
+    if (len(result) == 0):
+        res = None
+    else:
+        res = html.unescape(result[0])
+    return res
+
+def rec_question(bazi_info_gpt,user_message):
+    system_prompt = f"""
+    你是提问题的高手，下面是一些八字的背景知识和问题示例,需要你再生成和背景知识及问题示例相关的三个八字命理问题。
+    背景知识：
+    {bazi_info_gpt}
+
+    问题示例:
+    {user_message}    
+    """
+    user_prompt = f"""给我三个相关问题，注意主语与问题的主语一致，另外给我的问题不要包含感情生活和另一半。以json的形式返回, 如{{"response":三个相关问题的list}}"""
+    completion = client.chat.completions.create(
+        model="gpt-3.5-turbo-1106",                                          # 模型选择GPT 3.5 Turbo
+        messages=[{"role": "system", "content": system_prompt},
+                {"role": "user", "content":user_prompt}],
+        max_tokens = 1024,
+        temperature = 0,
+        response_format={"type": "json_object"}
+
+    )
+    string_res = completion.choices[0].message.content.strip()
+    string_res = json.loads(string_res)
+    return string_res["response"]
 
 @app.route('/api/baziAnalysis',methods=['POST','GET'])
 def baziAnalysis_stream():
@@ -922,10 +1039,10 @@ def baziMatchRes():
             gender = n
             (mingyun_analysis,chushen_analysis),res_gpt = bazipaipan(year,month,day,t_ime,gender,name)
             res = baziAnalysis(op,mingyun_analysis,chushen_analysis)
-            db_res = "他人/配对者/配对人 的八字背景信息如下:\n"
-            db_res = db_res + res + "\n" + match_res
+            head = "他人/配对者/配对人 的八字背景信息如下:\n"
+            db_res = head + res + "\n" + match_res
             logging.info(f"res is:{res}")
-            db_res_gpt = db_res + res_gpt + "\n" + match_res
+            db_res_gpt = head + res_gpt + "\n" + match_res
             first_reply = "您好，欢迎使用AI算命。\n" + res_gpt.split("---------------")[0]
             tidb_manager.insert_baziInfo(user_id, birthday, db_res, db_res_gpt, conversation_id, birthday_match=birthday_match,first_reply=first_reply)
             return Response(stream_output("您好，欢迎使用AI算命。\n", None,res_gpt.split("---------------")[0]), mimetype="text/event-stream")
@@ -955,9 +1072,9 @@ def chat_bazi():
     data = request.get_json()
     conversation_id = data.get('conversation_id')
     user_message = data.get('message')
-
+    lang = data.get("lang")
     # Initialize or retrieve existing ChatGPT instance for the user
-    chat = ChatGPT_assistant(conversation_id,matcher_type=0)
+    chat = ChatGPT_assistant(conversation_id, lang=lang, matcher_type=0)
     logging.info(f"conversation_id {conversation_id}, message {user_message}")
     return Response(chat.ask_gpt_stream(user_message), mimetype="text/event-stream")
 
@@ -967,8 +1084,9 @@ def chat_bazi_match():
     conversation_id = data.get('conversation_id')
     user_message = data.get('message')
     matcher_type = data.get('matcher_type')
+    lang = data.get("lang")
     # Initialize or retrieve existing ChatGPT instance for the user
-    chat = ChatGPT_assistant(conversation_id, match=True, matcher_type=matcher_type)
+    chat = ChatGPT_assistant(conversation_id, lang=lang, match=True, matcher_type=matcher_type)
     return Response(chat.ask_gpt_stream(user_message), mimetype="text/event-stream")
 
 @app.route('/api/reset_chat', methods=['POST'])
@@ -1020,8 +1138,24 @@ def asset_select():
         return jsonify({"status": "success", "data":res}, 200)
     else:
         return jsonify({"status": "database select Error"}, 500)
-
-
+@app.route('/api/question_rec', methods=['POST'])
+def question_rec():
+    data = request.get_json()
+    conversation_id = data.get('conversation_id')
+    user_message = data.get('message')
+    # 获取精确批文 和 thread_id
+    tidb_manager = TiDBManager()
+    bazi_info = tidb_manager.select_baziInfo(conversation_id=conversation_id)
+    # 如果user_message存在。 说明非首次回复
+    if user_message:
+        result = rec_question(bazi_info, user_message)
+    else:
+        # 从问题库中随机给出
+        result = ["今年运势怎么样？","什么时候适合结婚？","幸运数字是多少？"]
+    if result:
+        return jsonify({"status": "success", "data":result}, 200)
+    else:
+        return jsonify({"status": "database select Error"}, 500)
 @app.route('/api/tg_bot/first_visit',methods=['POST'])
 def tg_bot_first_visit():
     if request.method =="POST":
@@ -1062,7 +1196,8 @@ def tg_bot_chat():
     data = request.get_json()
     conversation_id = data.get('conversation_id')
     user_message = data.get('message')
-    chat = tg_bot_ChatGPT_assistant(conversation_id)
+    lang = data.get('lang')
+    chat = tg_bot_ChatGPT_assistant(conversation_id,lang)
     # Initialize or retrieve existing ChatGPT instance for the user
     return Response(chat.ask_gpt_stream(user_message), mimetype="text/event-stream")
 
@@ -1078,6 +1213,7 @@ def tg_bot_bazi_insert():
     # name_or_gender = data.get('name_or_gender') # gender:true代表女 false代表男 name直接输入名字
     user_id = data.get('user_id')
     matcher_id = data.get('matcher_id')
+    lang = data.get('lang')
 
     tidb_manager = TiDBManager()
     # 如果matcher_type 是0代表本人，是1，代表其他人， 2代表资产(int)
@@ -1102,7 +1238,12 @@ def tg_bot_bazi_insert():
         else:
             bazi_id = tidb_manager.insert_baziInfo(user_id, birthday, bazi_info, bazi_info_gpt, conversation_id,first_reply=first_reply)
         tidb_manager.insert_tg_bot_conversation_user(conversation_id, user_id, bazi_id)
-        return Response(stream_output("您好，欢迎使用AI算命。\n",user_id,bazi_info_gpt.split("---------------")[0]), mimetype="text/event-stream")
+        # 如果需要翻译成英文
+        if lang=="En":
+            result_text = translate(bazi_info_gpt.split("---------------")[0])
+        else:
+            result_text = bazi_info_gpt.split("---------------")[0]
+        return Response(stream_output("您好，欢迎使用AI算命。\n",user_id,result_text), mimetype="text/event-stream")
 
     elif matcher_type == 1:
         birthday_user = tidb_manager.select_birthday(user_id)
@@ -1115,20 +1256,24 @@ def tg_bot_bazi_insert():
         else:
             birthday_match = datetime(year_match, month_match, day_match, time_match)
             matcher_id = tidb_manager.insert_other_human(n, birthday_match, user_id,name=name)
-        res = baziMatch(birthday_user.year,birthday_user.month,birthday_user.day,birthday_user.hour, year_match,month_match,day_match,time_match)
+        res_match = baziMatch(birthday_user.year,birthday_user.month,birthday_user.day,birthday_user.hour, year_match,month_match,day_match,time_match)
         op = options(year=year_match,month=month_match,day=day_match,time=time_match,n=n)
-        # res = baziAnalysis(op)
-        # res_gpt = bazipaipan(year_match, month_match, day_match, time_match,gender)
         (mingyun_analysis,chushen_analysis),res_gpt = bazipaipan(year_match,month_match,day_match,time_match,gender,name=name,tg_bot=True)
         res = baziAnalysis(op,mingyun_analysis,chushen_analysis)
-        db_res_ = "他人/配对者/配对人 的八字背景信息如下:\n"
-        db_res = db_res_ + res + "\n" + res
+        head = "他人/配对者/配对人 的八字背景信息如下:\n"
+        db_res = head + res + "\n" + res_match
         logging.info(f"res is:{res}")
-        db_res_gpt = db_res_ + res_gpt + "\n" + res
+        db_res_gpt = head + res_gpt + "\n" + res_match
         first_reply = "您好，欢迎使用AI算命。\n" + res_gpt.split("---------------")[0]
         bazi_id = tidb_manager.insert_baziInfo(user_id, birthday_user, db_res, db_res_gpt, conversation_id, birthday_match=birthday_match,matcher_type=matcher_type, matcher_id=matcher_id,first_reply=first_reply)
         tidb_manager.insert_tg_bot_conversation_user(conversation_id, user_id, bazi_id)
-        return Response(stream_output("您好，欢迎使用AI算命。\n", None,res_gpt.split("---------------")[0]), mimetype="text/event-stream")
+
+        # 如果需要翻译成英文
+        if lang=="En":
+            result_text = translate(res_gpt.split("---------------")[0])
+        else:
+            result_text = res_gpt.split("---------------")[0]
+        return Response(stream_output("您好，欢迎使用AI算命。\n", None,result_text), mimetype="text/event-stream")
 
     elif matcher_type==2: # 配对资产
         birthday_user = tidb_manager.select_birthday(user_id)
@@ -1143,7 +1288,13 @@ def tg_bot_bazi_insert():
         logging.info(f"res is:{res}")
         bazi_id = tidb_manager.insert_baziInfo(user_id, birthday_user,res, res, conversation_id, birthday_match=birthday_match, matcher_type=matcher_type, matcher_id=matcher_id,first_reply=res)
         tidb_manager.insert_tg_bot_conversation_user(conversation_id, user_id, bazi_id)
-        return Response(stream_output(None, None, res), mimetype="text/event-stream")
+
+        # 如果需要翻译成英文
+        if lang=="En":
+            result_text = translate(res)
+        else:
+            result_text = res
+        return Response(stream_output(None, None, result_text), mimetype="text/event-stream")
     else:
         return jsonify({"status": f"POST data param type error! matcher type is number! where conversation_id={conversation_id}"}, 500)
 
@@ -1159,6 +1310,7 @@ def tg_bot_bazi_info():
         matcher_id = data.get('matcher_id')
         matcher_type = data.get('matcher_type')
         name = data.get("name")
+        lang = data.get("lang")
         tidb_manager = TiDBManager()
         # 重置当前对话，并获取八字背景信息；重置
         if matcher_type==0: # 获取自己的八字， match
@@ -1181,29 +1333,25 @@ def tg_bot_bazi_info():
         # chat = tg_bot_ChatGPT_assistant(conversation_id)
         # res = chat.reset_conversation()
         tidb_manager.insert_tg_bot_conversation_user(conversation_id, user_id, bazi_id)
-        return Response(stream_output(None, None, bazi_info), mimetype="text/event-stream")
+        # 如果需要翻译成英文
+        if lang=="En":
+            result_text = translate(bazi_info)
+        else:
+            result_text = bazi_info
+        return Response(stream_output(None, None, result_text), mimetype="text/event-stream")
 
 @app.route('/api/translate',methods=['POST'])
-def translate():
-    GOOGLE_TRANSLATE_URL = 'http://translate.google.com/m?q=%s&tl=%s&sl=%s'
+def translate_():
     request_data = request.get_json()
     text = request_data.get('text')
-    text = parse.quote(text)
-    url = GOOGLE_TRANSLATE_URL % (text,"en","zh-CN")
-    response = requests.get(url)
-    data = response.text
-    expr = r'(?s)class="(?:t0|result-container)">(.*?)<'
-    result = re.findall(expr, data)
-    if (len(result) == 0):
-        res = ""
+    res = translate(text)
+    if res:
+        return Response(stream_output(None, None, res), mimetype="text/event-stream")
     else:
-        res = html.unescape(result[0])
-    return Response(stream_output(None, None, res), mimetype="text/event-stream")
-
+        return jsonify({"status": f"google translate error!"}, 500)
 @app.route('/test')
 def test():
     return jsonify({"res":"test!"})
-    # return Response(stream_output("你的八字是....","ryen"), mimetype="text/event-stream")
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000, debug=True)
