@@ -573,8 +573,7 @@ def bazipaipan(year, month, day, time, gender,name=None,tg_bot=False):
     else:
         birth = '寒门'
     chushen_analysis = chushenGPT(eightWord,birth,sex)
-    # print(chushenGPT(eightWord,birth))
-    # print(chushen_analysis)
+    print(chushen_analysis)
     print(f"{start}生肖分析：{end}\n{sx_xingge[zodiac]}")
     print(f"{start}财运分析：{end}")
     caiyun_analysis = caiyunGPT(eightWord,shishen,scores,sex)
@@ -628,7 +627,7 @@ def bazipaipan(year, month, day, time, gender,name=None,tg_bot=False):
         birthday += datetime.timedelta(days=direction)
         count += 1
     ages = [(round(count/3 + 10*i), round(int(year) + 10*i + count//3)) for i in range(8)]
-    
+    ages.insert(0,(0,int(year)))
     for (seq, value) in enumerate(ages):
         gan_ = dayuns[seq][0]
         zhi_ = dayuns[seq][1]
@@ -658,7 +657,7 @@ def bazipaipan(year, month, day, time, gender,name=None,tg_bot=False):
                     if abs( Zhi.index(zhi_) - Zhi.index(zhis[i]) ) == 10:
                         jia = jia + "  --夹：" +  Zhi[(Zhi.index(zhi_) + Zhi.index(zhis[i]))%12]
                 
-        out = "{1:<4d}{2:<5s}{3} {15} {14} {13}  {4}:{5}{8}{6:{0}<6s}{12}{7}{8}{9} {10:{0}<15s} {11}".format(
+        out = "大运:{1:<4d}{2:<5s}{3} {15} {14} {13}  {4}:{5}{8}{6:{0}<6s}{12}{7}{8}{9} {10:{0}<15s} {11}".format(
             chr(12288), int(value[0]), '', dayuns[seq],ten_deities[mingzhu][gan_], gan_,check_gan(gan_, gans), 
             zhi_, yinyang(zhi_), '', zhi5_, zhi__,empty, fu, '', '') 
         gan_index = Gan.index(gan_)
@@ -672,7 +671,7 @@ def bazipaipan(year, month, day, time, gender,name=None,tg_bot=False):
             continue
         for i in range(10):
             _year = value[1] + i
-            if _year<current_year:
+            if value[1]<current_year:
                 continue
             if _year-current_year>20:
                 continue
@@ -702,7 +701,7 @@ def bazipaipan(year, month, day, time, gender,name=None,tg_bot=False):
             empty = chr(12288)
             if zhi2_ in empties[zhus[2]]:
                 empty = '空'       
-            out = "{1:>3d} {2:<5d}{3} {15} {14} {13}  {4}:{5}{8}{6:{0}<6s}{12}{7}{8}{9} - {10:{0}<13s} {11}".format(
+            out = "{1:>3d}岁 {2:<5d}流年:{3} {15} {14} {13}  {4}:{5}{8}{6:{0}<6s}{12}{7}{8}{9} - {10:{0}<13s} {11}".format(
                 chr(12288), int(value[0]) + i, value[1] + i, gan2_+zhi2_,ten_deities[mingzhu][gan2_], gan2_,check_gan(gan2_, gans2), 
                 zhi2_, yinyang(zhi2_), ten_deities[mingzhu][zhi2_], zhi6_, zhi__,empty, fu2, nayins[(gan2_, zhi2_)], ten_deities[mingzhu][zhi2_]) 
             jia = ""
@@ -735,7 +734,7 @@ def bazipaipan(year, month, day, time, gender,name=None,tg_bot=False):
 
     return mingyun_analysis,chushen_analysis
 if __name__ =="__main__":
-    year = '1991'
+    year = '2024'
     month = '7'
     day = '25'
     time = '10'
