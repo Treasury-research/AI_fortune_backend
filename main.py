@@ -1138,6 +1138,7 @@ def question_rec():
     data = request.get_json()
     conversation_id = data.get('conversation_id')
     user_message = data.get('message')
+    matcher_type = data.get('matcher_type')
     lang = request.headers.get('Lang')
     # 获取精确批文 和 thread_id
     tidb_manager = TiDBManager()
@@ -1148,6 +1149,54 @@ def question_rec():
     if user_message:
         result = rec_question(bazi_info, user_message)
     else:
+        if matcher_type==1:
+            if lang=="En":
+                questions = [
+                "What is the personality like?",
+                "Are we suitable to start a business together?",
+                "How is the financial fortune?",
+                "How to make up for the lack of fire in the five elements?",
+                "When can getting married be expected?",
+                "What kind of job is right?",
+                "What is the lucky number?",
+                "When will a romantic phase occur?",
+                "Any suggestions for improving Feng Shui and the Five Elements?"
+                ]
+            else:
+                questions = [
+                "此人性格怎样？",
+                "我和这个人适合合作创业吗？",
+                "此人财运怎么样？",
+                "五行缺火该怎么补？",
+                "什么时候能结婚？",
+                "什么样的工作适合这个人？"
+                "幸运数字是什么？",
+                "什么时候走桃花运？",
+                "有什么改善风水和五行的建议？"
+                ]
+        elif matcher_type==2:
+            pass
+        else:
+            if lang=="En":
+                questions = [
+                "How is my financial fortune?",
+                "When can I get married?",
+                "What kind of job is right for me?",
+                "How to make up for the lack of fire in the five elements?",
+                "What's my lucky number?",
+                "When can I have a girlfriend？",
+                "Any suggestions for improving Feng Shui and the Five Elements?"
+                ]
+            else:
+                questions = [
+                "我的财运怎么样？",
+                "我什么时候能结婚？",
+                "什么样的工作适合我？",
+                "五行缺火该怎么补？",
+                "我的幸运数字是什么？",
+                "我什么时候走桃花运？",
+                "有什么改善风水和五行的建议？"]
+
         # 从问题库中随机给出
         result = ["今年运势怎么样？","什么时候适合结婚？","幸运数字是多少？"]
     if result:
