@@ -573,7 +573,7 @@ def bazipaipan(year, month, day, time, gender,name=None,tg_bot=False):
     else:
         birth = '寒门'
     chushen_analysis = chushenGPT(eightWord,birth,sex)
-    print(chushen_analysis)
+    # print(chushen_analysis)
     print(f"{start}生肖分析：{end}\n{sx_xingge[zodiac]}")
     print(f"{start}财运分析：{end}")
     caiyun_analysis = caiyunGPT(eightWord,shishen,scores,sex)
