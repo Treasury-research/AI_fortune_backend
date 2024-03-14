@@ -12,9 +12,9 @@ import datetime
 
 from bidict import bidict
 
-from datas import *
-from ganzhi import *
-from sizi import summarys
+from bazi_info.datas import *
+from bazi_info.ganzhi import *
+from bazi_info.sizi import summarys
 
 def check_gan(gan, gans):
     result = ''

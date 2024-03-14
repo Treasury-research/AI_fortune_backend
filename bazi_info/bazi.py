@@ -12,10 +12,10 @@ import datetime
 from lunar_python import Lunar, Solar
 from colorama import init
 
-from datas import *
-from sizi import summarys
-from common import *
-from yue import months
+from bazi_info.datas import *
+from bazi_info.sizi import summarys
+from bazi_info.common import *
+from bazi_info.yue import months
 import io
 import os
 import threading

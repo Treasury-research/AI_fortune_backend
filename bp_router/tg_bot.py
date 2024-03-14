@@ -5,11 +5,9 @@ import time
 from flask import Flask, Response, request, stream_with_context, jsonify, make_response
 from datetime import datetime, timedelta
 import uuid
-import jwt
-from eth_account import Account
+import logging
 
-from main_v2 import logging
-from chat.pc import ChatGPT_assistant
+from chat.tg_bot import tg_bot_ChatGPT_assistant
 from database.mysql_db import TiDBManager
 from database.redis_db import RedisManager
 from bazi_info.bazi import baziAnalysis
@@ -18,7 +16,6 @@ from bazi_info.bazi_gpt import bazipaipan
 from utils.options_class import options
 from utils.util import *
 from utils.question_rec import rec_question
-from flask import Blueprint
 from flask import Blueprint
 tg_bot = Blueprint('tg_bot', __name__)
 

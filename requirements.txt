@@ -9,10 +9,12 @@ charset-normalizer==3.3.2
 click==8.1.7
 colorama==0.4.6
 DBUtils==3.0.3
+eth_account==0.11.0
 Flask==3.0.0
 frozenlist==1.4.1
 idna==3.6
 itsdangerous==2.1.2
+jwt==1.3.1
 Jinja2==3.1.2
 lunar-python==1.3.6
 MarkupSafe==2.1.3
@@ -24,6 +26,7 @@ PyMySQL==1.1.0
 pymysql-pool==0.4.6
 regex==2023.12.25
 requests==2.31.0
+redis==5.0.3
 sxtwl==2.0.6
 tiktoken==0.5.2
 tqdm==4.66.1

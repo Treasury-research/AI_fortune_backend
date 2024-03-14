@@ -9,7 +9,6 @@ import uuid
 import jwt
 from eth_account import Account
 
-from main_v2 import logging
 from chat.pc import ChatGPT_assistant
 from database.mysql_db import TiDBManager
 from database.redis_db import RedisManager
@@ -20,6 +19,8 @@ from utils.options_class import options
 from utils.util import *
 from utils.question_rec import rec_question
 from flask import Blueprint
+import logging
+
 pc = Blueprint('pc', __name__)
 
 @pc.route('/baziAnalysis',methods=['POST','GET'])
@@ -34,6 +35,7 @@ def baziAnalysis_stream():
         conversation_id = request.get_json().get("conversation_id")
         gender = request.get_json().get("n")
         lang = request.headers.get('Lang')
+        account = request.get_json().get("account")
         user_id = request.get_json().get("user_id")  #如果输入带user_id 则认为是修改信息
         try:
             year = int(year)
@@ -46,7 +48,7 @@ def baziAnalysis_stream():
             time = 0
         else:
             time = int(int(time.split("-")[0])/2  + int(time.split("-")[1]) / 2 ) # 提取开始小时
-        op = options(year=year,month=month,day=day,time=time,g=g,b=b,n=gender,r=r)
+        op = options(year=year,month=month,day=day,time=time,n=gender)
         (mingyun_analysis,chushen_analysis),bazi_info_gpt = bazipaipan(year,month,day,time,gender,name=name)
         bazi_info = baziAnalysis(op,mingyun_analysis,chushen_analysis)
         tidb_manager = TiDBManager()
@@ -54,12 +56,13 @@ def baziAnalysis_stream():
         first_reply = "您好，欢迎使用AI算命。\n" + bazi_info_gpt.split("---------------")[0]
         # 由于是本人，因此是插入或者修改
         # 如果user_id带有，那就是update操作，把之前的信息is_deleted设为1，表示重新开始对话。（因为背景信息会有所变化，对话重新开始）
-        if user_id:
+        # 如果有account 则是已经存储;没有account 就是修改
+        if user_id and account is None:
             tidb_manager.update_reset_delete(conversation_id=conversation_id)
-        else:
+        elif user_id is None and account is None:
             user_id = str(uuid.uuid4())
         tidb_manager.insert_bazi_chat(user_id, conversation_id, bazi_info, bazi_info_gpt, first_reply)
-        tidb_manager.upsert_user(user_id, birthday=birthday, name=name, gender=gender) # gender 0 为男，1 为女
+        tidb_manager.upsert_user(user_id, birthday=birthday, name=name, gender=gender, account=account) # gender 0 为男，1 为女
         # 如果需要翻译成英文
         if lang=='En':
             result_text = translate(first_reply)
@@ -290,13 +293,13 @@ def translate_():
     else:
         return jsonify({"status": f"google translate error!"}, 500)
 
-@app.route('/login',methods=['POST'])
+@pc.route('/login',methods=['POST'])
 def loginDto():
     data = request.get_json()
     message = data.get('message')
     address = data.get('address')
     signature = data.get('signature')
-# 验证签名
+    # 验证签名
     try:
         recovered_address = Account.recover_message(text=message, signature=signature)
         if recovered_address.lower() == user_address.lower():
@@ -314,19 +317,23 @@ def loginDto():
         return jsonify({'success': False, 'message': str(e)}, 400)
 
 
-@app.route('/verify',methods=['POST'])
+@pc.route('/verify',methods=['POST'])
 def verifyNonce():
     data = request.get_json()
     nonce_user = data.get('nonce')
     address = data.get('address')
     # 从Redis获取nonce
     nonce_redis = r.get(user_address)
+    tidb = TiDBManager()
     if nonce_redis==nonce_user:
         # 生成token 放在head中返回
         # 签名验证成功，生成JWT Token
         try:
-            token = jwt.encode({
-                'user_address': user_address,
+            user_id = str(uuid.uuid4())
+            tidb.upsert_user(user_id=user_id,account=address)
+            token = jwt.encode({  # user_id/ name / birthday
+                'account': account,
+                'user_id': user_id,
                 'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)  # Token 30分钟后过期
             }, os.environ['SECRET_KEY'], algorithm='HS256')
             response = make_response(jsonify({'success': True, 'message': 'login sucess'}))
@@ -337,12 +344,43 @@ def verifyNonce():
     else:
         return jsonify({'success': False, 'error': 'Invalid nonce'}, 400)
 
+@pc.route('/auth',methods=['GET'])
+def auth():
+    # 返回user_id 和 name
+    data = request.get_json()
+    auth_header = request.headers.get('Authorization')
+    decoded_parameters = jwt.decode(token, os.environ['SECRET_KEY'], algorithms=["HS256"])
+    tidb = TiDBManager()
+    name = tidb.select_user(user_id=decoded_parameters['user_id'], name=True)
+    if name:
+        return jsonify({"status": "success", "data":{'name':name,'user_id':decoded_parameters['user_id'],'account':decoded_parameters['account']}}, 200)
+    else:
+        return jsonify({"status": "database select Error"}, 500)
+
 @pc.before_app_request
 def before_request_for_blueprint():
-    token = request.headers['Authorization'].split(" ")[1]  # 假设Token前缀为Bearer
-    if not token:
-        return jsonify({'message': 'Token is missing!'}, 403)
-    try:
-        jwt.decode(token, os.environ['SECRET_KRY'], algorithms=["HS256"])
-    except:
-        return jsonify({'message': 'Token is invalid!'}, 403)
+    # 检查Authorization头是否存在
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        logging.info(f"Not the token user!")
+        # response = make_response(jsonify({'message': 'Authorization header is missing!'}), 403)
+        # return response
+    else:
+        # 检查Token是否以Bearer开头
+        try:
+            token_prefix, token = auth_header.split(" ")
+            if token_prefix.lower() != 'bearer':
+                raise ValueError
+        except ValueError:
+            response = make_response(jsonify({'message': 'Token is not properly formatted!'}), 403)
+            return response
+
+        # 验证Token
+        try:
+            jwt.decode(token, os.environ['SECRET_KEY'], algorithms=["HS256"])
+        except jwt.ExpiredSignatureError:
+            response = make_response(jsonify({'message': 'Token has expired!'}), 403)
+            return response
+        except jwt.InvalidTokenError:
+            response = make_response(jsonify({'message': 'Token is invalid!'}), 403)
+            return response

@@ -4,6 +4,7 @@ from urllib.parse import urlparse
 from datetime import datetime, timedelta
 import uuid
 import pymysql
+import os
 
 username = os.environ["DBusername"]
 password = os.environ["DBpassword"]
@@ -39,14 +40,14 @@ class TiDBManager:
     def __init__(self):
         self.db = pool.connection()
 
-    def upsert_user(self, user_id, birthday, gender, name=None):
+    def upsert_user(self, user_id, birthday=None, gender=None, account=None, name=None):
         with self.db.cursor() as cursor:
             sql = """
-                INSERT INTO AI_fortune_user_test (id, birthday, gender, name)
+                INSERT INTO AI_fortune_user_test (id, account, birthday, gender, name)
                 VALUES (%s, %s, %s, %s)
-                ON DUPLICATE KEY UPDATE birthday = VALUES(birthday), gender=VALUES(gender), name=VALUES(name)
+                ON DUPLICATE KEY UPDATE birthday = VALUES(birthday), gender=VALUES(gender), name=VALUES(name), account=VALUES(account)
                 """
-            cursor.execute(sql, (user_id, birthday, gender, name))
+            cursor.execute(sql, (user_id, account, birthday, gender, name))
         self.db.commit()
 
     def select_user(user_id, birthday=None, gender=None, name=None):
@@ -105,7 +106,7 @@ class TiDBManager:
         self.db.commit()
 
 
-    def select_chat_bazi(conversation_id=None, bazi_id=None, first_reply=None, bazi_info_gpt=None, bazi_info=None, matcher_id=None, assistant_id=None, thread_id=None):
+    def select_chat_bazi(self,conversation_id=None, bazi_id=None, first_reply=None, bazi_info_gpt=None, bazi_info=None, matcher_id=None, assistant_id=None, thread_id=None):
         fields = []  # 默认始终包含id字段
         params = {'conversation_id': conversation_id, 'bazi_id': bazi_id}  # 使用字典来传递参数
         # 根据参数决定是否包含特定字段
@@ -123,7 +124,7 @@ class TiDBManager:
             fields.append('thread_id')
 
         fields_str = ', '.join(fields)
-        sql = f"SELECT {fields_str} FROM AI_fortune_user_test WHERE conversation_id=%(conversation_id)s OR bazi_id=%(bazi_id)s"
+        sql = f"SELECT {fields_str} FROM AI_fortune_bazi_chat_test WHERE conversation_id=%(conversation_id)s OR bazi_id=%(bazi_id)s"
         with self.db.cursor() as cursor:
             # 执行查询
             cursor.execute(sql, params)
@@ -134,10 +135,10 @@ class TiDBManager:
     def select_bazi_id(self, conversation_id=None, matcher_id=None):
         with self.db.cursor() as cursor:
             if matcher_id:
-                sql = "SELECT id FROM AI_fortune_bazi WHERE matcher_id=%s AND conversation_id=%s"
+                sql = "SELECT id FROM AI_fortune_bazi_test WHERE matcher_id=%s AND conversation_id=%s"
                 cursor.execute(sql, (matcher_id,conversation_id))
             else:
-                sql = "SELECT id FROM AI_fortune_bazi WHERE matcher_id IS Null AND conversation_id=%s"
+                sql = "SELECT id FROM AI_fortune_bazi_test WHERE matcher_id IS Null AND conversation_id=%s"
                 cursor.execute(sql, (conversation_id))
             result = cursor.fetchone()
             if result:
@@ -217,4 +218,5 @@ class TiDBManager:
  
 if __name__ == "__main__":
     tidb = TiDBManager()
-    
+    res = tidb.select_chat_bazi(conversation_id="e1be7a32-5843-4b78-9eb5-06da9a5211c0",assistant_id=True,thread_id=True)
+    print(res)

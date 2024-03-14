@@ -6,7 +6,7 @@
 import collections
 from bidict import bidict
 
-from ganzhi import *
+from bazi_info.ganzhi import *
 
 xingxius = {
     0: ('角', ""),

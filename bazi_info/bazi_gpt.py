@@ -10,8 +10,8 @@ import json
 from openai import OpenAI
 from lunar_python import Lunar
 from colorama import init
-from sizi import summarys
-from sizi_gpt import summary
+from bazi_info.sizi import summarys
+from bazi_info.sizi_gpt import summary
 from bidict import bidict
 
 client = OpenAI()
