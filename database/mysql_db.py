@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import uuid
 import pymysql
 import os
+import logging
 
 username = os.environ["DBusername"]
 password = os.environ["DBpassword"]
@@ -44,13 +45,13 @@ class TiDBManager:
         with self.db.cursor() as cursor:
             sql = """
                 INSERT INTO AI_fortune_user_test (id, account, birthday, gender, name)
-                VALUES (%s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s)
                 ON DUPLICATE KEY UPDATE birthday = VALUES(birthday), gender=VALUES(gender), name=VALUES(name), account=VALUES(account)
                 """
             cursor.execute(sql, (user_id, account, birthday, gender, name))
         self.db.commit()
 
-    def select_user(user_id, birthday=None, gender=None, name=None):
+    def select_user(self,user_id=None, birthday=None, gender=None, name=None,account=None):
         fields = []  # 默认始终包含id字段
         params = {'user_id': user_id}  # 使用字典来传递参数
         # 根据参数决定是否包含特定字段
@@ -62,6 +63,16 @@ class TiDBManager:
             fields.append('name')
         fields_str = ', '.join(fields)
         sql = f"SELECT {fields_str} FROM AI_fortune_user_test WHERE id=%(user_id)s"
+        with self.db.cursor() as cursor:
+            # 执行查询
+            cursor.execute(sql, params)
+            # 获取查询结果
+            result = cursor.fetchone()
+        return result
+
+    def select_user_id(self, account):
+        params = {'account': account}  # 使用字典来传递参数
+        sql = f"SELECT id FROM AI_fortune_user_test WHERE account=%(account)s"
         with self.db.cursor() as cursor:
             # 执行查询
             cursor.execute(sql, params)
@@ -219,4 +230,5 @@ class TiDBManager:
 if __name__ == "__main__":
     tidb = TiDBManager()
     res = tidb.select_chat_bazi(conversation_id="e1be7a32-5843-4b78-9eb5-06da9a5211c0",assistant_id=True,thread_id=True)
+    res = tidb.select_user_id(account='0x46B7D0b84Fd2e4Ac88fa9F8ad291De09C67C76C2')
     print(res)

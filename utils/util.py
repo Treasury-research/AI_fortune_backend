@@ -1,3 +1,8 @@
+from urllib import parse
+import logging
+import requests
+import re
+import html
 def stream_output(message=None, user_id=None,bazi_info=None):
     # Stream的格式：<chunk>xxxxx</chunk><chunk>{id:'xxxx'}</chunk>
     # streams = ["<chunk>", bazi_info, "</chunk>","<chunk>",f"{{'user_id':{user_id}}}","</chunk>"]

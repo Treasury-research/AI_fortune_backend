@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import re
+import logging
 
 from database.mysql_db import TiDBManager
 from openai import OpenAI
@@ -19,7 +20,7 @@ class ChatGPT_assistant:
     
     def load_history(self):
         file_ids = ["file-jHT2dMXPx90e8daOC9ZNNT5m"]
-        assistant_id = "asst_nqZgPxFRRnDJMed8qEwDYv7K"
+        assistant_id = "asst_BtScD1XxQ06cnnBrWN6IM9gt"
         res = self.tidb_manager.select_chat_bazi(conversation_id=self.conversation_id,assistant_id=True,thread_id=True)
         if res and res[0] is not None and res[1] is not None:
             logging.info(f"self.assistant_id, self.thread_id {res}")
@@ -79,7 +80,8 @@ class ChatGPT_assistant:
         run = client.beta.threads.runs.create( 
             thread_id=self.thread_id,
             assistant_id=self.assistant_id)
-        self.wait_on_run(run,self.thread_id,user_message)
+        self.wait_on_run(run,user_message)
+        logging.info(f"")
         messages = client.beta.threads.messages.list(thread_id=self.thread_id)
         res = messages.data[0].content[0].text.value
         res = self.remove_brackets_content(res)
@@ -92,23 +94,30 @@ class ChatGPT_assistant:
         new_sentence = re.sub(r'【.*?】', '', sentence)
         return new_sentence
     
-    def wait_on_run(slef, run, thread_id,message=None):
+    def wait_on_run(self, run,message=None):
+        logging.info(f"{message}")
         while run.status == "queued" or run.status == "in_progress":
-            try:
-                messages = client.beta.threads.messages.list(thread_id=self.thread_id)
-                # if len(messages['data'][0]['content'])>0:
-                if len(messages.data[0].content)>0:
-                    res = messages.data[0].content[0].text.value
-                    logging.info(f"now the message is :{res}")
-                    if res != message:
-                        logging.info(f"exit early")
-                        break
-            except:
-                pass
-            time.sleep(2)
+        #     try:
+        #         logging.info("222")
+        #         messages = client.beta.threads.messages.list(thread_id=self.thread_id)
+        #         # if len(messages['data'][0]['content'])>0:
+        #         logging.info("333")
+        #         if len(messages.data[0].content)>0:
+        #             logging.info("444")
+        #             res = messages.data[0].content[0].text.value
+        #             logging.info("555")
+        #             logging.info(f"now the message is :{res}")
+        #             if res != message:
+        #                 logging.info("666")
+        #                 logging.info(f"exit early")
+        #                 break
+        #     except:
+        #         logging.info("777")
+            logging.info(run.status)
             run = client.beta.threads.runs.retrieve(
-                thread_id=thread_id,
+                thread_id=self.thread_id,
                 run_id=run.id,
             )
-        return run
+            time.sleep(2)
+        # return run
     

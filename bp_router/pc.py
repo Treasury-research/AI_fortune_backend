@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 import uuid
 import jwt
 from eth_account import Account
+from eth_account.messages import encode_defunct
 
 from chat.pc import ChatGPT_assistant
 from database.mysql_db import TiDBManager
@@ -301,14 +302,17 @@ def loginDto():
     signature = data.get('signature')
     # 验证签名
     try:
-        recovered_address = Account.recover_message(text=message, signature=signature)
-        if recovered_address.lower() == user_address.lower():
+        logging.info(f"message is {message}")
+        logging.info(f"signature is {signature}")
+        message_encoded = encode_defunct(text=message)
+        recovered_address = Account.recover_message(signable_message=message_encoded, signature=signature)
+        if recovered_address.lower() == address.lower():
         # 生成nonce并存入redis 过期时间为30s
             nonce = str(uuid.uuid4())
             try:
-                RedisManager = RedisManager()
-                RedisManager.insert_with_expiration(key=address,value=nonce)
-                return jsonify({'success': True, 'nonce': nonce})
+                redis_db = RedisManager()
+                redis_db.insert_with_expiration(key=address,value=nonce)
+                return jsonify({'success': True, 'nonce': nonce},200)
             except Exception as e:
                 return jsonify({'success': False, 'message': str(e)}, 400)
         else:
@@ -323,22 +327,24 @@ def verifyNonce():
     nonce_user = data.get('nonce')
     address = data.get('address')
     # 从Redis获取nonce
-    nonce_redis = r.get(user_address)
+    redis_db = RedisManager()
+    nonce_redis = redis_db.get(address)
     tidb = TiDBManager()
     if nonce_redis==nonce_user:
         # 生成token 放在head中返回
         # 签名验证成功，生成JWT Token
         try:
-            user_id = str(uuid.uuid4())
-            tidb.upsert_user(user_id=user_id,account=address)
+            user_id = tidb.select_user_id(account=address)
+            if user_id is None:
+                user_id = str(uuid.uuid4())
+                tidb.upsert_user(user_id=user_id,account=address)
             token = jwt.encode({  # user_id/ name / birthday
-                'account': account,
+                'account': address,
                 'user_id': user_id,
-                'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)  # Token 30分钟后过期
+                'exp': datetime.utcnow() + timedelta(days=7)  # Token 30分钟后过期
             }, os.environ['SECRET_KEY'], algorithm='HS256')
-            response = make_response(jsonify({'success': True, 'message': 'login sucess'}))
-            response.headers['Authorization'] = f'Bearer {token}'
-            return jsonify({'success': True}, 200)
+            response = make_response(jsonify({'success': True, 'message': 'login sucess','data':{'name':None,'account': address,'user_id': user_id,'token':f'Bearer {token}'}},200))
+            return response
         except Exception as e:
             return jsonify({'success': False, 'message': str(e)}, 400)
     else:
@@ -347,8 +353,8 @@ def verifyNonce():
 @pc.route('/auth',methods=['GET'])
 def auth():
     # 返回user_id 和 name
-    data = request.get_json()
     auth_header = request.headers.get('Authorization')
+    token_prefix, token = auth_header.split(" ")
     decoded_parameters = jwt.decode(token, os.environ['SECRET_KEY'], algorithms=["HS256"])
     tidb = TiDBManager()
     name = tidb.select_user(user_id=decoded_parameters['user_id'], name=True)
