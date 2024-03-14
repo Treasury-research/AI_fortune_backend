@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 import re
 import logging
-
+import time
 from database.mysql_db import TiDBManager
 from openai import OpenAI
 client = OpenAI()
@@ -113,11 +113,10 @@ class ChatGPT_assistant:
         #                 break
         #     except:
         #         logging.info("777")
-            logging.info(run.status)
             run = client.beta.threads.runs.retrieve(
                 thread_id=self.thread_id,
                 run_id=run.id,
             )
             time.sleep(2)
         # return run
-    
+        logging.info(run.status)

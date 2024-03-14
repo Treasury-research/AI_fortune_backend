@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timedelta
 import re
-
+import time
 from database.mysql_db import TiDBManager
 from openai import OpenAI
 client = OpenAI()
