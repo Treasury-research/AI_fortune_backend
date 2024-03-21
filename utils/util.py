@@ -3,14 +3,16 @@ import logging
 import requests
 import re
 import html
+import json
+from openai import OpenAI
+client = OpenAI()
 def stream_output(message=None, user_id=None,bazi_info=None):
     # Stream的格式：<chunk>xxxxx</chunk><chunk>{id:'xxxx'}</chunk>
     # streams = ["<chunk>", bazi_info, "</chunk>","<chunk>",f"{{'user_id':{user_id}}}","</chunk>"]
-    if message:
-        yield f"{message}"
-    logging.info(message)
+    # if message:
+    #     yield f"{message}"
     if bazi_info:
-        yield bazi_info
+        yield bazi_info.encode('utf-8')
         # answer = ""
     if user_id:
         user_data = {'user_id':user_id}

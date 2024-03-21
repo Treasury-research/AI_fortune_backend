@@ -1,3 +1,7 @@
+from openai import OpenAI
+import json
+import random
+client = OpenAI()
 def rec_question(bazi_info_gpt,user_message,lang=None):
     if lang=="En":
         system_prompt = f""""

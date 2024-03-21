@@ -173,11 +173,13 @@ def tg_bot_bazi_info():
         # 重置当前对话，并获取八字背景信息；重置
         if matcher_type==0: # 获取自己的八字， match
             bazi_id = tidb_manager.select_bazi_id(conversation_id=conversation_id)
-            first_reply = tidb_manager.select_chat_bazi(bazi_id=bazi_id, first_reply=True)
+            logging.info(bazi_id)
+            first_reply = tidb_manager.select_chat_bazi(bazi_id=bazi_id, first_reply=True)[0]
+            logging.info(first_reply)
         # 重置当前对话 其他人
         else:
             bazi_id = tidb_manager.select_bazi_id(conversation_id=conversation_id,matcher_id=matcher_id)
-            first_reply = tidb_manager.select_chat_bazi(bazi_id=bazi_id, first_reply=True)
+            first_reply = tidb_manager.select_chat_bazi(bazi_id=bazi_id, first_reply=True)[0]
         if matcher_type==2:
             if bazi_info ==False or bazi_id ==False:
                 birthday_match = tidb_manager.select_birthday(matcher_type=2,matcher_id=matcher_id)
@@ -193,4 +195,5 @@ def tg_bot_bazi_info():
             result_text = translate(first_reply)
         else:
             result_text = first_reply
+        logging.info("result_text")
         return Response(stream_output(None, None, result_text), mimetype="text/event-stream")

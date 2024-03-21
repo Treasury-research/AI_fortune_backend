@@ -32,7 +32,7 @@ app = Flask(__name__)
 # 跨域支持
 CORS(app, resources=r'/*')
 # 注册蓝图，并指定其对应的前缀（url_prefix）
-app.register_blueprint(tg_bot, url_prefix="/api/tg_bot")
+app.register_blueprint(tg_bot, url_prefix="/tg_bot")
 app.register_blueprint(pc, url_prefix="/api")
 
 

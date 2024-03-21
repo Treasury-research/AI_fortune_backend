@@ -107,23 +107,29 @@ class tg_bot_ChatGPT_assistant:
         # 使用正则表达式匹配"【】"及其内部的内容，并将其替换为空
         new_sentence = re.sub(r'【.*?】', '', sentence)
         return new_sentence
-    def wait_on_run(self, run, thread_id,message=None):
+    def wait_on_run(self, run,message=None):
+        logging.info(f"{message}")
         while run.status == "queued" or run.status == "in_progress":
-            try:
-                messages = get_messages(self.thread_id)
-                if len(messages['data'][0]['content'])>0:
-                    res = messages['data'][0]['content'][0]['text']['value']
-                    logging.info(f"now the message is :{res}")
-                    if res != message:
-                        logging.info(f"exit early")
-                        break
-            except:
-                pass
-            time.sleep(2)
+        #     try:
+        #         logging.info("222")
+        #         messages = client.beta.threads.messages.list(thread_id=self.thread_id)
+        #         # if len(messages['data'][0]['content'])>0:
+        #         logging.info("333")
+        #         if len(messages.data[0].content)>0:
+        #             logging.info("444")
+        #             res = messages.data[0].content[0].text.value
+        #             logging.info("555")
+        #             logging.info(f"now the message is :{res}")
+        #             if res != message:
+        #                 logging.info("666")
+        #                 logging.info(f"exit early")
+        #                 break
+        #     except:
+        #         logging.info("777")
             run = client.beta.threads.runs.retrieve(
-                thread_id=thread_id,
+                thread_id=self.thread_id,
                 run_id=run.id,
             )
-
-        return run
-       
+            time.sleep(2)
+        # return run
+        logging.info(run.status)

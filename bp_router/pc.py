@@ -9,6 +9,7 @@ import uuid
 import jwt
 from eth_account import Account
 from eth_account.messages import encode_defunct
+import random
 
 from chat.pc import ChatGPT_assistant
 from database.mysql_db import TiDBManager
@@ -38,6 +39,7 @@ def baziAnalysis_stream():
         lang = request.headers.get('Lang')
         account = request.get_json().get("account")
         user_id = request.get_json().get("user_id")  #如果输入带user_id 则认为是修改信息
+        logging.info(f"user_id :{user_id}, account:{account}")
         try:
             year = int(year)
             month = int(month)
@@ -78,25 +80,26 @@ def baziMatchRes():
         tidb_manager = TiDBManager()
         data = request.get_json()
         logging.info(f"data is :{data}")
-        year,month,day,t_ime,user_id,gender = data['year'], data['month'], data['day'], data['time'], data['user_id'], data['n']
+        year,month,day,t_ime,user_id,gender = data.get('year'), data.get('month'), data.get('day'), data.get('time'), data.get('user_id'), data.get('n')
         name = data.get("name")
-        update = date.get("update")
-        matcher_type = data["matcher_type"]
+        update = data.get("update")
+        matcher_type = data.get("matcher_type")
+        matcher_id = data.get("matcher_id")
         lang = request.headers.get('Lang')
         try:
-            year = int(year)
-            month = int(month)
-            day = int(day)
+            if year:
+                year = int(year)
+                month = int(month)
+                day = int(day)
+                if int(t_ime.split("-")[0])>=23:
+                    t_ime = 0
+                else:
+                    t_ime = int(int(t_ime.split("-")[0])/2  + int(t_ime.split("-")[1]) / 2 ) # 提取开始小时
+                birthday = datetime(year, month, day, t_ime)
         except:
             return jsonify({"error":"无效的数据格式"}, 400)
         conversation_id = request.get_json().get("conversation_id")
-        if int(t_ime.split("-")[0])>=23:
-            t_ime = 0
-        else:
-            t_ime = int(int(t_ime.split("-")[0])/2  + int(t_ime.split("-")[1]) / 2 ) # 提取开始小时
         birthday_user = tidb_manager.select_user(user_id,birthday=True)
-        birthday = datetime(year, month, day, t_ime)
-
         if matcher_type==1: # 与他人匹配
             match_res = baziMatch(birthday_user.year,birthday_user.month,birthday_user.day,birthday_user.hour, year,month,day,t_ime)
             op = options(year=year,month=month,day=day,time=t_ime,n=gender)
@@ -123,14 +126,22 @@ def baziMatchRes():
             return Response(stream_output(None, None,result_text), mimetype="text/event-stream")
 
         elif matcher_type==2:
-            coin_data = get_coin_data(name)
-            logging.info(f"coin data is {coin_data}")
-            res = baziMatch(birthday.year,birthday.month,birthday.day,birthday.hour, year,month,day,t_ime,name=name,coin_data=coin_data)
-            db_res_gpt = baziMatch(birthday.year,birthday.month,birthday.day,birthday.hour, year,month,day,t_ime,name=name,coin_data=coin_data,own=True)
-
-            logging.info(f"res is:{res}")
-            tidb_manager.insert_baziInfo(user_id, birthday, res, db_res_gpt, conversation_id, birthday_match=birthday_match,first_reply=db_res_gpt)
-            return Response(stream_output(res, None), mimetype="text/event-stream")
+            # 方案1： 人工手写的回复
+            if matcher_id:
+                first_reply = tidb_manager.select_asset(matcher_id=matcher_id)[0]
+            bazi_id = tidb_manager.select_bazi_id(user_id=user_id)
+            bazi_info, bazi_info_gpt = tidb_manager.select_chat_bazi(bazi_id=bazi_id, bazi_info=True, bazi_info_gpt=True)
+            head = f"资产的信息如下：\n"
+            person_prefix = f"本人的信息如下：\n"
+            db_res = head + first_reply + person_prefix + bazi_info
+            db_res_gpt = head + first_reply + person_prefix + bazi_info_gpt
+            tidb_manager.insert_bazi_chat(user_id, conversation_id, db_res, db_res_gpt, first_reply, matcher_id=matcher_id, matcher_type=matcher_type)
+            # 如果需要翻译成英文
+            if lang=="En":
+                result_text = translate(first_reply)
+            else:
+                result_text = first_reply
+            return Response(stream_output(None, None, result_text), mimetype="text/event-stream")
 
 @pc.route('/get_bazi_info', methods=['POST'])
 def get_bazi_info():
@@ -139,7 +150,7 @@ def get_bazi_info():
     tidb_manager = TiDBManager()
     bazi_info = tidb_manager.select_chat_bazi(conversation_id=conversation_id, bazi_info=True)
     # Initialize or retrieve existing ChatGPT instance for the user
-    return Response(stream_output(bazi_info,), mimetype="text/event-stream")
+    return Response(stream_output(bazi_info[0],), mimetype="text/event-stream")
 
 @pc.route('/chat_bazi', methods=['POST'])
 def chat_bazi():
@@ -183,13 +194,17 @@ def asset_insert():
     name = data.get('name')
     birthday = data.get('birthday')
     user_id = data.get('user_id')
+    first_reply_json = data.get('first_reply')
     tidb_manager = TiDBManager()
     # 如果是公共的财产时间，则不用记录user_id
     if user_id:
         res = tidb_manager.upsert_asset(name,birthday,user_id)
+    elif first_reply_json:
+        res = tidb_manager.update_asset_reply(data=first_reply_json)
     # 如果是用户单独导入的财产，记录user_id
     else:
         res = tidb_manager.upsert_asset(name,birthday)
+    
     # Return the ChatGPT's response
     if res:
         return jsonify({"status": "success"}, 200)
@@ -201,24 +216,25 @@ def asset_select():
     data = request.get_json()
     user_id = data.get('user_id')
     tidb_manager = TiDBManager()
-    _res = tidb_manager.select_asset(user_id)
-    res = [(name, birthday) for name, birthday, _ in _res]
+    res = tidb_manager.select_asset(user_id,hot=True,recent_hot=True)
+    # res = [(name, birthday) for name, birthday, _ in _res]
     # Return the ChatGPT's response
     if res:
         return jsonify({"status": "success", "data":res}, 200)
     else:
         return jsonify({"status": "database select Error"}, 500)
 
-@pc.route('/api/question_rec', methods=['POST'])
+@pc.route('/question_rec', methods=['POST'])
 def question_rec():
     data = request.get_json()
     conversation_id = data.get('conversation_id')
     user_message = data.get('message')
     matcher_type = data.get('matcher_type')
     lang = request.headers.get('Lang')
+    logging.info(f"matcher_type is :{matcher_type}")
     # 获取精确批文 和 thread_id
     tidb_manager = TiDBManager()
-    bazi_info = tidb_manager.select_baziInfo(conversation_id=conversation_id)
+    bazi_info = tidb_manager.select_chat_bazi(conversation_id=conversation_id,bazi_info=True)[0]
     # 如果user_message存在。 说明非首次回复
     if lang=="En":
         bazi_info = translate(bazi_info)
@@ -334,16 +350,19 @@ def verifyNonce():
         # 生成token 放在head中返回
         # 签名验证成功，生成JWT Token
         try:
-            user_id = tidb.select_user_id(account=address)
+            user_id = tidb.select_user_id(account=address)[0]
+            name = None
             if user_id is None:
                 user_id = str(uuid.uuid4())
                 tidb.upsert_user(user_id=user_id,account=address)
+            else:
+                name = tidb.select_user(user_id=user_id,name=True)[0]
             token = jwt.encode({  # user_id/ name / birthday
                 'account': address,
                 'user_id': user_id,
                 'exp': datetime.utcnow() + timedelta(days=7)  # Token 30分钟后过期
             }, os.environ['SECRET_KEY'], algorithm='HS256')
-            response = make_response(jsonify({'success': True, 'message': 'login sucess','data':{'name':None,'account': address,'user_id': user_id,'token':f'Bearer {token}'}},200))
+            response = make_response(jsonify({'success': True, 'message': 'login sucess','data':{'name':name,'account': address,'user_id': user_id,'token':f'Bearer {token}'}},200))
             return response
         except Exception as e:
             return jsonify({'success': False, 'message': str(e)}, 400)
@@ -357,9 +376,9 @@ def auth():
     token_prefix, token = auth_header.split(" ")
     decoded_parameters = jwt.decode(token, os.environ['SECRET_KEY'], algorithms=["HS256"])
     tidb = TiDBManager()
-    name = tidb.select_user(user_id=decoded_parameters['user_id'], name=True)
+    name = tidb.select_user(user_id=decoded_parameters['user_id'], name=True)[0]
     if name:
-        return jsonify({"status": "success", "data":{'name':name,'user_id':decoded_parameters['user_id'],'account':decoded_parameters['account']}}, 200)
+        return jsonify({"status": "success", "data":{'name':name[0],'user_id':decoded_parameters['user_id'],'account':decoded_parameters['account']}}, 200)
     else:
         return jsonify({"status": "database select Error"}, 500)
 

@@ -21,6 +21,8 @@ class ChatGPT_assistant:
     def load_history(self):
         file_ids = ["file-jHT2dMXPx90e8daOC9ZNNT5m"]
         assistant_id = "asst_BtScD1XxQ06cnnBrWN6IM9gt"
+        if self.matcher_type==2:
+            assistant_id = "asst_PeMaKiXX6Br4V7VLQ0436wut"
         res = self.tidb_manager.select_chat_bazi(conversation_id=self.conversation_id,assistant_id=True,thread_id=True)
         if res and res[0] is not None and res[1] is not None:
             logging.info(f"self.assistant_id, self.thread_id {res}")

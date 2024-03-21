@@ -595,7 +595,8 @@ def bazipaipan(year, month, day, time, gender,name=None,tg_bot=False):
     print(shishenGPT(shishen,sex))
     sum_index = ''.join([mingzhu, '日', *zhus[3]])
     print(sum_index)
-    print(summary[sum_index])
+    if summary.get(sum_index):
+        print(summary[sum_index])
 
     print("大运流年分析：")
     dayuns = []
