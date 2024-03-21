@@ -109,11 +109,12 @@ class TiDBManager:
             sql = "UPDATE AI_fortune_bazi_chat_test SET is_deleted = 1 WHERE conversation_id = %s OR bazi_id = %s"
             cursor.execute(sql, (conversation_id, bazi_id))
             if reset:
-                select_sql = "SELECT bazi_id, user_id, conversation_id, bazi_info, bazi_info_gpt, first_reply, matcher_id, matcher_type FROM AI_fortune_bazi_chat_test WHERE conversation_id = %s OR bazi_id = %s"
+                select_sql = "SELECT bazi_id, user_id, conversation_id, bazi_info, bazi_info_gpt, first_reply, assistant_id, matcher_id, matcher_type FROM AI_fortune_bazi_chat_test WHERE conversation_id = %s OR bazi_id = %s ORDER BY createdAt DESC"
                 cursor.execute(select_sql, (conversation_id, bazi_id))
                 result = cursor.fetchone()
-                bazi_id, user_id, conversation_id, bazi_info, bazi_info_gpt, first_reply, matcher_id, matcher_type = result
-                self.insert_bazi_chat(user_id, conversation_id, bazi_info, bazi_info_gpt, first_reply, assistant_id, None, matcher_id, matcher_type)
+                if result:
+                    bazi_id, user_id, conversation_id, bazi_info, bazi_info_gpt, first_reply, assistant_id, matcher_id, matcher_type = result
+                    self.insert_bazi_chat(user_id, conversation_id, bazi_info, bazi_info_gpt, first_reply, assistant_id, None, matcher_id, matcher_type)
         self.db.commit()
 
 
@@ -143,13 +144,16 @@ class TiDBManager:
             result = cursor.fetchone()
         return result
 
-    def select_bazi_id(self, conversation_id=None, matcher_id=None):
+    def select_bazi_id(self, conversation_id=None, matcher_id=None, user_id=None):
         with self.db.cursor() as cursor:
             if matcher_id:
-                sql = "SELECT id FROM AI_fortune_bazi_test WHERE matcher_id=%s AND conversation_id=%s"
+                sql = "SELECT bazi_id FROM AI_fortune_bazi_chat_test WHERE matcher_id=%s AND conversation_id=%s"
                 cursor.execute(sql, (matcher_id,conversation_id))
+            elif user_id:
+                sql = "SELECT bazi_id FROM AI_fortune_bazi_chat_test WHERE user_id=%s"
+                cursor.execute(sql, (user_id))
             else:
-                sql = "SELECT id FROM AI_fortune_bazi_test WHERE matcher_id IS Null AND conversation_id=%s"
+                sql = "SELECT bazi_id FROM AI_fortune_bazi_chat_test WHERE matcher_id IS NULL AND conversation_id=%s"
                 cursor.execute(sql, (conversation_id))
             result = cursor.fetchone()
             if result:
@@ -205,15 +209,46 @@ class TiDBManager:
         except:
             return None
 
-    def select_asset(self, user_id):
+    def update_asset_reply(self, data):
+        try:
+            with connection.cursor() as cursor:
+                sql = "UPDATE AI_fortune_assets_test SET first_reply = %s WHERE name = %s AND user_id IS NULL"
+                insert_data = [(item['first_reply'], json.dumps(item['name'])) for item in data]
+                cursor.executemany(insert_sql, insert_data)
+            self.db.commit()
+            return True
+        except:
+            return None
+
+    def select_asset(self, user_id=None, matcher_id=None, hot=None, recent_hot=None):
         with self.db.cursor() as cursor:
-            sql = "SELECT name, birthday, id FROM AI_fortune_assets_test WHERE user_id=%s OR user_id IS NULL"
-            cursor.execute(sql, (user_id,))
-            result = cursor.fetchall()
-            if result:
-                return result
+            if hot and recent_hot:
+                res = {}
+                sql = "SELECT name, birthday, id FROM AI_fortune_assets_test WHERE hot=1"
+                cursor.execute(sql, ())
+                result = cursor.fetchall()
+                res['hot'] = result
+                sql = "SELECT name, birthday, id FROM AI_fortune_assets_test WHERE recent_hot=1"
+                cursor.execute(sql, ())
+                result = cursor.fetchall()
+                res['recent_hot'] = result
+                return res
+            if matcher_id:
+                sql = "SELECT first_reply FROM AI_fortune_assets_test WHERE id=%s"
+                cursor.execute(sql, (matcher_id,))
+                result = cursor.fetchone()
+                if result:
+                    return result
+                else:
+                    return False
             else:
-                return False
+                sql = "SELECT name, birthday, id FROM AI_fortune_assets_test WHERE user_id=%s OR user_id IS NULL"
+                cursor.execute(sql, (user_id,))
+                result = cursor.fetchall()
+                if result:
+                    return result
+                else:
+                    return False
 
     def insert_tg_bot_conversation_user(self, conversation_id, user_id, bazi_id):
     # 存储tg_bot 的conversation_id（即tg的chat_id）和user_id(后端生成的个人八字信息标志) 还有标志tg中个人或者配对的八字背景信息id
@@ -231,4 +266,5 @@ if __name__ == "__main__":
     tidb = TiDBManager()
     res = tidb.select_chat_bazi(conversation_id="e1be7a32-5843-4b78-9eb5-06da9a5211c0",assistant_id=True,thread_id=True)
     res = tidb.select_user_id(account='0x46B7D0b84Fd2e4Ac88fa9F8ad291De09C67C76C2')
+    res = tidb.update_reset_delete(conversation_id='ryen_test1111',reset=True)
     print(res)
