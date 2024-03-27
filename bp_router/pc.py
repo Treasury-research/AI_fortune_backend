@@ -135,7 +135,7 @@ def baziMatchRes():
                     name, birthday, report= res[0], res[1], res[2]
             guaxiang = get_guaxiang()
             background = get_background(name,birthday)
-            first_reply_rules = get_asset_rules(birthday.year, birthday.month, birthday.day, birthday.hour, name, pc=True)
+            first_reply_rules = get_asset_rules(name, birthday.year, birthday.month, birthday.day, birthday.hour, pc=True)
             bazi_id = tidb_manager.select_bazi_id(user_id=user_id)
             first_reply = first_reply_rules + "\n资产报告："+'\n' + report +"\n卦象"+ '\n'+ guaxiang
             bazi_info, bazi_info_gpt = tidb_manager.select_chat_bazi(bazi_id=bazi_id, bazi_info=True, bazi_info_gpt=True)

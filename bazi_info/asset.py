@@ -50,7 +50,7 @@ def capture_print(func):
             # 获取锁
             lock.acquire()
             res = func(*args, **kwargs)
-            return res,captured_output.getvalue()
+            return captured_output.getvalue()
         finally:
             # 释放锁
             lock.release()
@@ -59,8 +59,8 @@ def capture_print(func):
 
 
 @capture_print
-def get_asset_rules(name, year, month, day, time, name, pc=None):
-    def wuxing_liuyue(name, year, month, day, time, name, pc=None):
+def get_asset_rules(name, year, month, day, time, pc=None):
+    def wuxing_liuyue(name, year, month, day, time, pc=None):
         if pc:
             start = "<b>"
             end = "</b>"
@@ -203,11 +203,9 @@ def get_asset_rules(name, year, month, day, time, name, pc=None):
         except:
             string_res = completion.choices[0].message.content.strip()
             print(string_res)
-    scores, liuyue_wuxing = wuxing_liuyue(name, year, month, day, time, name, pc=pc)
+    scores, liuyue_wuxing = wuxing_liuyue(name, year, month, day, time, pc=pc)
     texts = guanxi(scores, liuyue_wuxing)
-    # forcast = month_forecast(liuyue_wuxing, texts)    
+    forcast = month_forecast(liuyue_wuxing, texts)    
     print(f"{start}每月预测：{end}")
     for text in texts:
         print(text)
-
-
