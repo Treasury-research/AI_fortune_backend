@@ -329,9 +329,9 @@ def caiyunGPT(bazi,shishen,wuxing,sex):
 
     return string_res["response"]
 
-def yinyuanGPT(bazi,shishen,wuxing,sex):
+def yinyuanGPT(bazi,shishen,wuxing,sex,mingyun):
     prompt = f"""
-    你是个算命大师负主要负责个人姻缘情况分析。我现在会把八字、五行、十神告诉你，你需要结合八字、五行、十神推测出此人的姻缘情况。
+    你是个算命大师负主要负责个人姻缘情况分析。我现在会把八字、五行、十神和个人命运分析告诉你，你需要结合八字、五行、十神和个人命运分析推测出此人的姻缘情况。
     不要出现'根据八字和十神的信息分析'等字眼
     不要出现五行的分析情况
     不要出现"xx相生相克"的分析情况
@@ -343,7 +343,7 @@ def yinyuanGPT(bazi,shishen,wuxing,sex):
     completion = client.chat.completions.create(
         model="gpt-3.5-turbo-1106",                                          # 模型选择GPT 3.5 Turbo
         messages=[{"role": "system", "content": prompt},
-                {"role": "user", "content":f"八字为:{bazi}\n\nn五行为:{wuxing}\n\n十神为：{shishen}"}],
+                {"role": "user", "content":f"八字为:{bazi}\n\nn五行为:{wuxing}\n\n十神为：{shishen}\n\n个人命运分析为：{mingyun}"}],
         max_tokens = 2048,
         temperature = 0,
         response_format={"type": "json_object"}
@@ -539,9 +539,11 @@ def bazipaipan(year, month, day, time, gender,name=None,tg_bot=False):
     print(f"{start}命理分析：{end}")
     zhus = [item for item in zip(gans, zhis)]
     sum_index = ''.join([mingzhu, '日', *zhus[3]])
-    if sum_index in summarys:     
+    if sum_index in summarys: 
+        mingyun = summary[sum_index]    
         mingyun_analysis = mingyunGPT(eightWord,summary[sum_index],sex)
     else:
+        mingyun = f"此人生于{sum_index}"
         mingyun_analysis = mingyunGPT(eightWord,f"此人生于{sum_index}",sex)
 
     print(mingyun_analysis)
@@ -580,7 +582,7 @@ def bazipaipan(year, month, day, time, gender,name=None,tg_bot=False):
     caiyun_analysis = caiyunGPT(eightWord,shishen,scores,sex)
     print(caiyun_analysis)
     print(f"{start}姻缘分析：{end}")
-    yinyuan_analysis = yinyuanGPT(eightWord,shishen,scores,sex)
+    yinyuan_analysis = yinyuanGPT(eightWord,shishen,scores,sex,mingyun)
     print(yinyuan_analysis)
     print(f"{start}性格分析：{end}")
     xingge_analysis = xinggeGPT(eightWord,shishen,scores,sex)
