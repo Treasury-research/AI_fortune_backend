@@ -200,7 +200,7 @@ class TiDBManager:
                 else:
                     sql = """
                         INSERT INTO AI_fortune_assets_test (id, name, birthday)
-                        VALUES (%s, %s, %s, %s)
+                        VALUES (%s, %s, %s)
                         ON DUPLICATE KEY UPDATE birthday = VALUES(birthday), name= VALUES(name)
                         """
                     cursor.execute(sql, (id, name, birthday))
@@ -209,12 +209,11 @@ class TiDBManager:
         except:
             return None
 
-    def update_asset_reply(self, data):
+    def update_asset_reply(self, name, first_reply):
         try:
             with connection.cursor() as cursor:
                 sql = "UPDATE AI_fortune_assets_test SET first_reply = %s WHERE name = %s AND user_id IS NULL"
-                insert_data = [(item['first_reply'], json.dumps(item['name'])) for item in data]
-                cursor.executemany(insert_sql, insert_data)
+                cursor.executemany(insert_sql, first_reply, name)
             self.db.commit()
             return True
         except:
@@ -234,7 +233,7 @@ class TiDBManager:
                 res['recent_hot'] = result
                 return res
             if matcher_id:
-                sql = "SELECT first_reply FROM AI_fortune_assets_test WHERE id=%s"
+                sql = "SELECT name, birthday, report FROM AI_fortune_assets_test WHERE id=%s"
                 cursor.execute(sql, (matcher_id,))
                 result = cursor.fetchone()
                 if result:
@@ -261,10 +260,56 @@ class TiDBManager:
                 """
             cursor.execute(sql, (generated_uuid,conversation_id, user_id, bazi_id))
         self.db.commit()
- 
+
+    def insert_conversation(self, conversation_id, human_message=None, AI_message=None, bazi_id=None, user_id=None):
+        generated_uuid = str(uuid.uuid4())
+        with self.db.cursor() as cursor:
+            sql = """
+                INSERT INTO AI_fortune_conversation_test (id, conversation_id, human_message, AI_message, bazi_id, user_id) VALUES (%s, %s, %s, %s, %s, %s)
+                """
+            cursor.execute(sql, (generated_uuid, conversation_id, human_message, AI_message, bazi_id))
+        self.db.commit()
+        logging.info(f"Insert conversation success where conversation_id = {conversation_id}")
+
+    def get_conversation(self, conversation_id):
+        """
+        data type:<class 'tuple'>
+        data example:   (('我的运势怎么样', '你的运势...'), ('你好，我的八字是什么？', '根据你提供的知识...'))
+        """
+        with self.db.cursor() as cursor:
+            sql = """
+            SELECT human, AI FROM AI_fortune_conversation_test WHERE conversation_id = %s AND is_reset = 0 ORDER BY createdAt
+            """
+            cursor.execute(sql, (conversation_id,))
+            result = cursor.fetchall()
+            if result:
+                return result
+            else:
+                logging.info(f"No data in database, where conversation_id is{conversation_id}") 
+
+    def reset_conversation(self, conversation_id=None, bazi_id=None):
+        try:
+            with self.db.cursor() as cursor:
+                if bazi_id:
+                    sql = "UPDATE AI_fortune_conversation_test SET is_reset = 1 bazi_id = %s"
+                    cursor.execute(sql, (conversation_id, bazi_id, ))
+                else:    
+                    sql = "UPDATE AI_fortune_conversation_test SET is_reset = 1 WHERE conversation_id = %s"
+                    cursor.execute(sql, (conversation_id,))
+            self.db.commit()
+            return True
+        except:
+            logging.info(f"database reset conversation error where conversation_id = {conversation_id}")
+            return False
+
 if __name__ == "__main__":
     tidb = TiDBManager()
-    res = tidb.select_chat_bazi(conversation_id="e1be7a32-5843-4b78-9eb5-06da9a5211c0",assistant_id=True,thread_id=True)
-    res = tidb.select_user_id(account='0x46B7D0b84Fd2e4Ac88fa9F8ad291De09C67C76C2')
-    res = tidb.update_reset_delete(conversation_id='ryen_test1111',reset=True)
+    # res = tidb.select_chat_bazi(conversation_id="e1be7a32-5843-4b78-9eb5-06da9a5211c0",assistant_id=True,thread_id=True)
+    # res = tidb.select_user_id(account='0x46B7D0b84Fd2e4Ac88fa9F8ad291De09C67C76C2')
+    # res = tidb.update_reset_delete(conversation_id='ryen_test1111',reset=True)
+    # res = tidb.select_chat_bazi(conversation_id="8ea31496-7a94-47d6-adc9-1089a710bf29",bazi_info=True)
+    # print(res)
+    import uuid
+    id = str(uuid.uuid4())
+    res = tidb.upsert_asset(id=id, name="ERN",birthday="2021-1-29 14")
     print(res)

@@ -17,6 +17,7 @@ from database.redis_db import RedisManager
 from bazi_info.bazi import baziAnalysis
 from bazi_info.bazi_match import baziMatch
 from bazi_info.bazi_gpt import bazipaipan
+from bazi_info.asset import get_asset_rules
 from utils.options_class import options
 from utils.util import *
 from utils.question_rec import rec_question
@@ -99,7 +100,7 @@ def baziMatchRes():
         except:
             return jsonify({"error":"无效的数据格式"}, 400)
         conversation_id = request.get_json().get("conversation_id")
-        birthday_user = tidb_manager.select_user(user_id,birthday=True)
+        birthday_user = tidb_manager.select_user(user_id,birthday=True)[0]
         if matcher_type==1: # 与他人匹配
             match_res = baziMatch(birthday_user.year,birthday_user.month,birthday_user.day,birthday_user.hour, year,month,day,t_ime)
             op = options(year=year,month=month,day=day,time=t_ime,n=gender)
@@ -127,14 +128,21 @@ def baziMatchRes():
 
         elif matcher_type==2:
             # 方案1： 人工手写的回复
+            # 首次回复是算法预算 + 卦象 + 资产报告
             if matcher_id:
-                first_reply = tidb_manager.select_asset(matcher_id=matcher_id)[0]
+                res = tidb_manager.select_asset(matcher_id=matcher_id)
+                if res:
+                    name, birthday, report= res[0], res[1], res[2]
+            guaxiang = get_guaxiang()
+            background = get_background(name,birthday)
+            first_reply_rules = get_asset_rules(birthday.year, birthday.month, birthday.day, birthday.hour, name, pc=True)
             bazi_id = tidb_manager.select_bazi_id(user_id=user_id)
+            first_reply = first_reply_rules + "\n资产报告："+'\n' + report +"\n卦象"+ '\n'+ guaxiang
             bazi_info, bazi_info_gpt = tidb_manager.select_chat_bazi(bazi_id=bazi_id, bazi_info=True, bazi_info_gpt=True)
             head = f"资产的信息如下：\n"
             person_prefix = f"本人的信息如下：\n"
             db_res = head + first_reply + person_prefix + bazi_info
-            db_res_gpt = head + first_reply + person_prefix + bazi_info_gpt
+            db_res_gpt = head + first_reply_rules + "\n" + background + person_prefix + bazi_info_gpt
             tidb_manager.insert_bazi_chat(user_id, conversation_id, db_res, db_res_gpt, first_reply, matcher_id=matcher_id, matcher_type=matcher_type)
             # 如果需要翻译成英文
             if lang=="En":
@@ -147,10 +155,15 @@ def baziMatchRes():
 def get_bazi_info():
     data = request.get_json()
     conversation_id = data.get('conversation_id')
+    lang = request.headers.get('Lang')
     tidb_manager = TiDBManager()
-    bazi_info = tidb_manager.select_chat_bazi(conversation_id=conversation_id, bazi_info=True)
+    bazi_info = tidb_manager.select_chat_bazi(conversation_id=conversation_id, bazi_info=True)[0]
+    if lang=="En":
+        result_text = translate(bazi_info)
+    else:
+        result_text = bazi_info
     # Initialize or retrieve existing ChatGPT instance for the user
-    return Response(stream_output(bazi_info[0],), mimetype="text/event-stream")
+    return Response(stream_output(result_text,), mimetype="text/event-stream")
 
 @pc.route('/chat_bazi', methods=['POST'])
 def chat_bazi():
@@ -171,22 +184,20 @@ def chat_bazi_match():
     matcher_type = data.get('matcher_type')
     lang = request.headers.get('Lang')
     # Initialize or retrieve existing ChatGPT instance for the user
-    chat = ChatGPT_assistant(conversation_id, lang=lang, match=True, matcher_type=matcher_type)
+    chat = ChatGPT_assistant(conversation_id, lang=lang, matcher_type=matcher_type)
     return Response(chat.ask_gpt_stream(user_message), mimetype="text/event-stream")
 
 @pc.route('/reset_chat', methods=['POST'])
 def reset_chat():
     data = request.get_json()
     conversation_id = data.get('conversation_id')
-    matcher_id = data.get('matcher_id')
-    chat = ChatGPT_assistant(conversation_id)
-    res = chat.reset_conversation()
+    tidb_manager = TiDBManager()
+    res = tidb_manager.reset_conversation(conversation_id)
     # Return the ChatGPT's response
     if res:
         return jsonify({"status": "success"}, 200)
     else:
         return jsonify({"status": f"database reset Error, where conversation_id={conversation_id}"}, 500)
-
 
 @pc.route('/assets_insert', methods=['POST'])
 def asset_insert():
@@ -234,11 +245,11 @@ def question_rec():
     logging.info(f"matcher_type is :{matcher_type}")
     # 获取精确批文 和 thread_id
     tidb_manager = TiDBManager()
-    bazi_info = tidb_manager.select_chat_bazi(conversation_id=conversation_id,bazi_info=True)[0]
-    # 如果user_message存在。 说明非首次回复
-    if lang=="En":
-        bazi_info = translate(bazi_info)
     if user_message:
+        bazi_info = tidb_manager.select_chat_bazi(conversation_id=conversation_id,bazi_info=True)[0]
+        # 如果user_message存在。 说明非首次回复
+        if lang=="En":
+            bazi_info = translate(bazi_info)
         result = rec_question(bazi_info, user_message)
     else:
         if matcher_type == 1:
