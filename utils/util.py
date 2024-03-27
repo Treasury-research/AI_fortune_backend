@@ -120,7 +120,7 @@ def get_raptor(query):
             SentenceSplitter(chunk_size=512, chunk_overlap=128)
         ],  # transformations applied for ingestion
     )
-    nodes = raptor_pack.run(query, mode=mode)
+    nodes = raptor_pack.run(query, mode="collapsed")
     return [node.text for node in nodes]
 
 def get_background(name, birthday):
@@ -132,5 +132,5 @@ def get_background(name, birthday):
 def get_guaxiang():
     with open("./utils/guaxiang", 'r') as file:
         file_content = file.read()
-    res = file_content.format(name=name, birthday=birthday)
+    res = file_content
     return res

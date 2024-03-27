@@ -267,7 +267,7 @@ class TiDBManager:
             sql = """
                 INSERT INTO AI_fortune_conversation_test (id, conversation_id, human_message, AI_message, bazi_id, user_id) VALUES (%s, %s, %s, %s, %s, %s)
                 """
-            cursor.execute(sql, (generated_uuid, conversation_id, human_message, AI_message, bazi_id))
+            cursor.execute(sql, (generated_uuid, conversation_id, human_message, AI_message, bazi_id,user_id))
         self.db.commit()
         logging.info(f"Insert conversation success where conversation_id = {conversation_id}")
 
@@ -278,7 +278,7 @@ class TiDBManager:
         """
         with self.db.cursor() as cursor:
             sql = """
-            SELECT human, AI FROM AI_fortune_conversation_test WHERE conversation_id = %s AND is_reset = 0 ORDER BY createdAt
+            SELECT human_message, AI_message FROM AI_fortune_conversation_test WHERE conversation_id = %s AND is_reset = 0 ORDER BY createdAt
             """
             cursor.execute(sql, (conversation_id,))
             result = cursor.fetchall()

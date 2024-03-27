@@ -172,7 +172,7 @@ def chat_bazi():
     user_message = data.get('message')
     lang = request.headers.get('Lang')
     # Initialize or retrieve existing ChatGPT instance for the user
-    chat = ChatGPT_assistant(conversation_id, lang=lang, matcher_type=0)
+    chat = ChatGPT_assistant(conversation_id, lang=lang, matcher_type=0,message=user_message)
     logging.info(f"conversation_id {conversation_id}, message {user_message}")
     return Response(chat.ask_gpt_stream(user_message), mimetype="text/event-stream")
 
@@ -184,7 +184,7 @@ def chat_bazi_match():
     matcher_type = data.get('matcher_type')
     lang = request.headers.get('Lang')
     # Initialize or retrieve existing ChatGPT instance for the user
-    chat = ChatGPT_assistant(conversation_id, lang=lang, matcher_type=matcher_type)
+    chat = ChatGPT_assistant(conversation_id, lang=lang, matcher_type=matcher_type,message=user_message)
     return Response(chat.ask_gpt_stream(user_message), mimetype="text/event-stream")
 
 @pc.route('/reset_chat', methods=['POST'])

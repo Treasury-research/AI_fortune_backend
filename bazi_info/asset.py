@@ -60,13 +60,14 @@ def capture_print(func):
 
 @capture_print
 def get_asset_rules(name, year, month, day, time, pc=None):
+    if pc:
+        start = "<b>"
+        end = "</b>"
+    else:
+        start="🔹"
+        end = ""     
+
     def wuxing_liuyue(name, year, month, day, time, pc=None):
-        if pc:
-            start = "<b>"
-            end = "</b>"
-        else:
-            start="🔹"
-            end = ""     
 
         solar_birthday = sxtwl.fromSolar(int(year), int(month),int(day))  # 公历生日
         Lleap = "闰" if solar_birthday.isLunarLeap() else ""
@@ -173,16 +174,13 @@ def get_asset_rules(name, year, month, day, time, pc=None):
 
     def month_forecast(liuyue_wuxing, texts):
         prompt = f"""
-        你是一个算命大师主要负责每月预测，
-        我现在提供给你12个月对应的文案```{texts}```，
-        请根据每一条文案进行自由发挥扩写补充，
-        要求返回每一条文案在100-150字左右，
-        每一条文案不可以重复，做到前后逻辑通顺。
+        你是一个算命大师主要负责内容扩写，
+        我现在提供给你对应的文案```{texts}```，
+        请根据文案进行自由发挥扩写补充，
+        要求返回文案在100-150字左右，
+        文案不可以重复，做到前后逻辑通顺。
         
-        按照以下预测模板,分别输出12个月的预测：
-        x月为""对应的流月五行""月，补充后的文案。
-
-        请用json格式返回，格式为{{"response":每月预测}}
+        请用json格式返回，格式为{{"response":文案扩写}}
         """
 
         completion = client.chat.completions.create(
@@ -205,7 +203,8 @@ def get_asset_rules(name, year, month, day, time, pc=None):
             print(string_res)
     scores, liuyue_wuxing = wuxing_liuyue(name, year, month, day, time, pc=pc)
     texts = guanxi(scores, liuyue_wuxing)
-    forcast = month_forecast(liuyue_wuxing, texts)    
-    print(f"{start}每月预测：{end}")
-    for text in texts:
-        print(text)
+    import datetime
+    current_month = datetime.datetime.now().month
+    forcast = month_forecast(liuyue_wuxing[current_month-1], texts[current_month-1])    
+    print(f"{start}月运势预测：{end}")
+    print(f"流月五行为{liuyue_wuxing[current_month-1]}。"+forcast)

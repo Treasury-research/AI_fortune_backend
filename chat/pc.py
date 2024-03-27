@@ -6,20 +6,18 @@ from database.mysql_db import TiDBManager
 from openai import OpenAI
 import tiktoken
 from utils.util import get_raptor
-client = OpenAI()
-
+import openai
+client=OpenAI()
 class ChatGPT_assistant:
     def __init__(self, conversation_id, message, lang=None,match=None, matcher_type=None):
         self.conversation_id = conversation_id
         self.lang=lang
         self.messages = []
         self.user_message = message
-        self._retrive()
+        self._retrieve()
         self.tidb_manager = TiDBManager()
         self.matcher_type = matcher_type
         self.load_history()
-        logging.info(f"{self.conversation_id}, {self.assistant_id},{self.thread_id}")
-
     def _num_tokens_from_string(self, string: str) -> int:
         """Returns the number of tokens in a text string."""
         encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
@@ -33,7 +31,7 @@ class ChatGPT_assistant:
         # if total tokens exceeds the max_tokens, delete the oldest message
         # 如果总token数超过限制，则删除旧消息 
         logging.info(f"The number of summary is: {total_tokens}")
-        max_tokens -= _num_tokens_from_string(self.user_message)
+        max_tokens -= self._num_tokens_from_string(self.user_message)
         while total_tokens > max_tokens:
             # delete the first list item 删除列表的第一个元素
             removed_message = conversation_messages.pop(0)  
@@ -43,7 +41,7 @@ class ChatGPT_assistant:
 
     def load_history(self):
         
-        bazi_info_gpt = self.tidb_manager.select_baziInfo(conversation_id=self.conversation_id,bazi_info_gpt=True)[0]
+        bazi_info_gpt = self.tidb_manager.select_chat_bazi(conversation_id=self.conversation_id,bazi_info_gpt=True)[0]
         conversation_messages = self.tidb_manager.get_conversation(conversation_id=self.conversation_id)
         if self.matcher_type != 2:
             instructions = f"""你是世界上最好的八字命理分析师，你的职责如下：
@@ -75,7 +73,7 @@ class ChatGPT_assistant:
             # if the first item is not a tuple, that is bazi_info
             # logging.info(f"conversation is: {conversations}")
             if type(conversations[0]) != tuple:
-                self.messages = [{"role": "system", "content": content}]
+                self.messages = [{"role": "system", "content": background_content}]
                 conversations = conversations[1:]
             for conversation in conversations:
                 # add user message
@@ -84,14 +82,14 @@ class ChatGPT_assistant:
                 self.messages.append({"role": "assistant", "content": conversation[1]})
         # 如果对话中不存在未重置的记录，那么意味着直接使用bazi_info作为背景知识
         else:
-            logging.info(f"the length is :{self._num_tokens_from_string(content)}")
-            self.messages = [{"role": "system", "content": content}]
+            logging.info(f"the length is :{self._num_tokens_from_string(background_content)}")
+            self.messages = [{"role": "system", "content": background_content}]
 
     def writeToTiDB(self, human, AI):
         self.tidb_manager.insert_conversation(self.conversation_id, human, AI)
 
     def _retrieve(self):
-        retrieve_info = "与问题相关的信息：" + get_raptor(self.user_message) + "\n"
+        retrieve_info = "与问题相关的信息：" +str(get_raptor(self.user_message)) + "\n"
         if self.lang=='En':
             self.user_message = "Please provide the response in English: "+self.user_message
         else:
@@ -102,16 +100,17 @@ class ChatGPT_assistant:
         answer = ""
         self.messages.append({"role": "user", "content": self.user_message})
         # Send the entire conversation history to GPT
-        rsp = openai.ChatCompletion.create(
+        rsp = client.chat.completions.create(
             model="gpt-4-0125-preview",
             messages=self.messages,
             stream=True
         )
         # yield "<chunk>"
         for chunk in rsp:
-            data = chunk["choices"][0]["delta"].get("content","")
-            answer += data
-            yield data
+            data = chunk.choices[0].delta.content
+            if data is not None:
+                answer += data
+                yield data
         # yield f"</chunk><chunk>{{'user_id':{self.user_id}}}</chunk>"
         # Add GPT's reply to conversation history
         logging.info(f"gpt answer is: {answer}")
