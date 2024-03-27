@@ -2,9 +2,19 @@ from urllib import parse
 import logging
 import requests
 import re
+import os
 import html
 import json
 from openai import OpenAI
+from llama_index.packs.raptor import RaptorPack
+from llama_index.core import SimpleDirectoryReader
+from llama_index.core.node_parser import SentenceSplitter
+from llama_index.llms.openai import OpenAI
+from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.vector_stores.milvus import MilvusVectorStore
+
+import nest_asyncio
+nest_asyncio.apply()
 client = OpenAI()
 def stream_output(message=None, user_id=None,bazi_info=None):
     # Stream的格式：<chunk>xxxxx</chunk><chunk>{id:'xxxx'}</chunk>
@@ -94,3 +104,33 @@ def translate(text):
         res = html.unescape(result[0])
     return res
 
+def get_raptor(query):
+    uri = 'http://'+os.environ['Milvus_ip']+':'+os.environ['Milvus_port']+'/'
+    vector_store = MilvusVectorStore(uri=uri,collection_name='AI_fortune_v1',dim=1536)
+    raptor_pack = RaptorPack(
+        [],
+        embed_model=OpenAIEmbedding(
+            model="text-embedding-3-small"
+        ),  # used for embedding clusters
+        llm=OpenAI(model="gpt-4-0125-preview", temperature=0),  # gpt-3.5-turbo，used for generating summaries gpt-4
+        vector_store=vector_store,  # used for storage
+        similarity_top_k=4,  # top k for each layer, or overall top-k for collapsed
+        mode="collapsed",  # sets default mode
+        transformations=[
+            SentenceSplitter(chunk_size=512, chunk_overlap=128)
+        ],  # transformations applied for ingestion
+    )
+    nodes = raptor_pack.run(query, mode=mode)
+    return [node.text for node in nodes]
+
+def get_background(name, birthday):
+    with open("./utils/assets_background", 'r') as file:
+        file_content = file.read()
+    res = file_content.format(name=name, birthday=birthday)
+    return res
+
+def get_guaxiang():
+    with open("./utils/guaxiang", 'r') as file:
+        file_content = file.read()
+    res = file_content.format(name=name, birthday=birthday)
+    return res
