@@ -362,9 +362,10 @@ def verifyNonce():
         # 生成token 放在head中返回
         # 签名验证成功，生成JWT Token
         try:
-            user_id = tidb.select_user_id(account=address)[0]
+            user_id = tidb.select_user_id(account=address)
             name = None
             if user_id is None:
+                user_id = user_id[0]
                 user_id = str(uuid.uuid4())
                 tidb.upsert_user(user_id=user_id,account=address)
             else:
