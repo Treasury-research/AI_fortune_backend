@@ -368,7 +368,9 @@ def verifyNonce():
                 user_id = str(uuid.uuid4())
                 tidb.upsert_user(user_id=user_id,account=address)
             else:
-                name = tidb.select_user(user_id=user_id,name=True)[0]
+                res = tidb.select_user(user_id=user_id,name=True)
+                if res:
+                    name =  res[0]
             token = jwt.encode({  # user_id/ name / birthday
                 'account': address,
                 'user_id': user_id,
