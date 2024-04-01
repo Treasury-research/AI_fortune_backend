@@ -25,7 +25,7 @@ def stream_output(message=None, user_id=None,bazi_info=None):
         yield bazi_info.encode('utf-8')
         # answer = ""
     if user_id:
-        user_data = {'user_id':user_id}
+        user_data = {'user_key':user_id}
         json_user_data = json.dumps(user_data)
         yield f"<chunk>{json_user_data}</chunk>"
 

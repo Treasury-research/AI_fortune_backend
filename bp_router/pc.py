@@ -39,7 +39,8 @@ def baziAnalysis_stream():
         gender = request.get_json().get("n")
         lang = request.headers.get('Lang')
         account = request.get_json().get("account")
-        user_id = request.get_json().get("user_id")  #如果输入带user_id 则认为是修改信息
+        # user_id = request.get_json().get("user_id")  #如果输入带user_id 则认为是修改信息
+        user_id = None
         logging.info(f"user_id :{user_id}, account:{account}")
         try:
             year = int(year)
@@ -63,7 +64,7 @@ def baziAnalysis_stream():
         # 如果有account 则是已经存储;没有account 就是修改
         if user_id and account is None:
             tidb_manager.update_reset_delete(conversation_id=conversation_id)
-        elif user_id is None and account is None:
+        elif user_id == "" and account is None:
             user_id = str(uuid.uuid4())
         tidb_manager.insert_bazi_chat(user_id, conversation_id, bazi_info, bazi_info_gpt, first_reply)
         tidb_manager.upsert_user(user_id, birthday=birthday, name=name, gender=gender, account=account) # gender 0 为男，1 为女
@@ -131,13 +132,13 @@ def baziMatchRes():
             # 首次回复是算法预算 + 卦象 + 资产报告
             if matcher_id:
                 res = tidb_manager.select_asset(matcher_id=matcher_id)
-                if res:
-                    name, birthday, report= res[0], res[1], res[2]
+                name, birthday, report= res[0], res[1], res[2]
             guaxiang = get_guaxiang()
             background = get_background(name,birthday)
+            logging.info(f"data is {birthday.year, birthday.month, birthday.day, birthday.hour}")
             first_reply_rules = get_asset_rules(name, birthday.year, birthday.month, birthday.day, birthday.hour, pc=True)
             bazi_id = tidb_manager.select_bazi_id(user_id=user_id)
-            first_reply = first_reply_rules + "\n资产报告："+'\n' + report +"\n卦象"+ '\n'+ guaxiang
+            first_reply = first_reply_rules + "</b>资产报告：<b>"+'\n' + report +"\n</b>卦象：<b>"+ '\n'+ guaxiang
             bazi_info, bazi_info_gpt = tidb_manager.select_chat_bazi(bazi_id=bazi_id, bazi_info=True, bazi_info_gpt=True)
             head = f"资产的信息如下：\n"
             person_prefix = f"本人的信息如下：\n"

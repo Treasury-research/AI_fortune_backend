@@ -330,6 +330,8 @@ def caiyunGPT(bazi,shishen,wuxing,sex):
     return string_res["response"]
 
 def yinyuanGPT(bazi,shishen,wuxing,sex,mingyun):
+    if sex=='女':
+        mingyun=mingyun.replace('妻','夫')
     prompt = f"""
     你是个算命大师负主要负责个人姻缘情况分析。我现在会把八字、五行、十神和个人命运分析告诉你，你需要结合八字、五行、十神和个人命运分析推测出此人的姻缘情况。
     不要出现'根据八字和十神的信息分析'等字眼
@@ -576,7 +578,7 @@ def bazipaipan(year, month, day, time, gender,name=None,tg_bot=False):
     else:
         birth = '寒门'
     chushen_analysis = chushenGPT(eightWord,birth,sex)
-    print(chushen_analysis)
+    # print(chushen_analysis)
     print(f"{start}生肖分析：{end}\n{sx_xingge[zodiac]}")
     print(f"{start}财运分析：{end}")
     caiyun_analysis = caiyunGPT(eightWord,shishen,scores,sex)

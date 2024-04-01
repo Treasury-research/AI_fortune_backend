@@ -130,11 +130,17 @@ def get_asset_rules(name, year, month, day, time, pc=None):
             print("八字中五行诸全，五行不缺。")
         else:
             print("八字中五行相对缺"+"，".join(missing)+"。")
-
+        
         yun = eightWord.getYun(1) # 运
         daYunArr = yun.getDaYun() # 大运
         liuNianArr = daYunArr[0].getLiuNian() # 流年
-        liuYueArr = liuNianArr[0].getLiuYue() # 流月
+        if len(liuNianArr)>0:
+            liuYueArr = liuNianArr[0].getLiuYue() # 流月
+        else:
+            yun = eightWord.getYun(0) # 运
+            daYunArr = yun.getDaYun() # 大运
+            liuNianArr = daYunArr[0].getLiuNian() # 流年
+            liuYueArr = liuNianArr[0].getLiuYue() # 流月
         # 将流月与五行进行对应
         liuyue_wuxing = []
         for liuYue in liuYueArr:

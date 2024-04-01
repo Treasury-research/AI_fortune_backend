@@ -149,7 +149,7 @@ class TiDBManager:
             if matcher_id:
                 sql = "SELECT bazi_id FROM AI_fortune_bazi_chat_test WHERE matcher_id=%s AND conversation_id=%s"
                 cursor.execute(sql, (matcher_id,conversation_id))
-            elif user_id:
+            elif user_id is not None:
                 sql = "SELECT bazi_id FROM AI_fortune_bazi_chat_test WHERE user_id=%s"
                 cursor.execute(sql, (user_id))
             else:
@@ -309,7 +309,8 @@ if __name__ == "__main__":
     # res = tidb.update_reset_delete(conversation_id='ryen_test1111',reset=True)
     # res = tidb.select_chat_bazi(conversation_id="8ea31496-7a94-47d6-adc9-1089a710bf29",bazi_info=True)
     # print(res)
-    import uuid
-    id = str(uuid.uuid4())
-    res = tidb.upsert_asset(id=id, name="ERN",birthday="2021-1-29 14")
-    print(res)
+    # import uuid
+    # id = str(uuid.uuid4())
+    # res = tidb.upsert_asset(id=id, name="ERN",birthday="2021-1-29 14")
+    res = tidb.select_asset(matcher_id="37cef2a4-3282-40dc-888a-464468c164ae")
+    print(type(res[0]),type(res[1].hour))
