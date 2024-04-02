@@ -231,6 +231,10 @@ def asset_select():
     res = tidb_manager.select_asset(user_id,hot=True,recent_hot=True)
     # res = [(name, birthday) for name, birthday, _ in _res]
     # Return the ChatGPT's response
+    # 更改财产顺序
+    # 按照指定的顺序重新排序
+    new_order = ['BTC', 'ETH', 'SOL']
+    res['hot'] = sorted(res['hot'], key=lambda x: new_order.index(x[0]))
     if res:
         return jsonify({"status": "success", "data":res}, 200)
     else:

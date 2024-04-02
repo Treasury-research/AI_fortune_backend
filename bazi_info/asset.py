@@ -5,6 +5,9 @@ from lunar_python import Lunar
 import collections
 from collections import OrderedDict
 from openai import OpenAI
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
+
 
 client = OpenAI()
 Gan = ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"]
@@ -131,27 +134,33 @@ def get_asset_rules(name, year, month, day, time, pc=None):
         else:
             print("八字中五行相对缺"+"，".join(missing)+"。")
         
-        yun = eightWord.getYun(1) # 运
-        daYunArr = yun.getDaYun() # 大运
-        liuNianArr = daYunArr[0].getLiuNian() # 流年
-        if len(liuNianArr)>0:
-            liuYueArr = liuNianArr[0].getLiuYue() # 流月
-        else:
-            yun = eightWord.getYun(0) # 运
-            daYunArr = yun.getDaYun() # 大运
-            liuNianArr = daYunArr[0].getLiuNian() # 流年
-            liuYueArr = liuNianArr[0].getLiuYue() # 流月
-        # 将流月与五行进行对应
-        liuyue_wuxing = []
-        for liuYue in liuYueArr:
-            ganzhi = liuYue.getGanZhi()
-            wuxing = gan5[ganzhi[0]] + zhi1[ganzhi[1]]
-            liuyue_wuxing.append(wuxing)
+        # yun = eightWord.getYun(1) # 运
+        # daYunArr = yun.getDaYun() # 大运
+        # liuNianArr = daYunArr[0].getLiuNian() # 流年
+        # if len(liuNianArr)>0:
+        #     liuYueArr = liuNianArr[0].getLiuYue() # 流月
+        # else:
+        #     yun = eightWord.getYun(0) # 运
+        #     daYunArr = yun.getDaYun() # 大运
+        #     liuNianArr = daYunArr[0].getLiuNian() # 流年
+        #     liuYueArr = liuNianArr[0].getLiuYue() # 流月
+        # # 将流月与五行进行对应
+        # liuyue_wuxing = []
+        # for liuYue in liuYueArr:
+        #     ganzhi = liuYue.getGanZhi()
+        #     wuxing = gan5[ganzhi[0]] + zhi1[ganzhi[1]]
+        #     liuyue_wuxing.append(wuxing)
+        current_date = datetime.now()
+        date = Lunar.fromDate(current_date)
+        next_month = current_date + relativedelta(months=1)
+        date = Lunar.fromDate(next_month)
+        gz = date.getMonthInGanZhi()
+        month_wuxing = gan5[gz[0]] + zhi1[gz[1]]
 
-        return scores, liuyue_wuxing
+        return scores, month_wuxing
 
 
-    def guanxi(scores, liuyue_wuxing):
+    def guanxi(scores, wuxing):
         # 对五行得分进行大小排序
         # 计算规则：根据五行得分对五行进行大小排列后，流月五行与它的关系，得出以下4种情况
         # 1. 单边涨：流月至少一个五行与得分最大五行相同
@@ -162,23 +171,23 @@ def get_asset_rules(name, year, month, day, time, pc=None):
 
         texts = []
 
-        for wuxing in liuyue_wuxing:
-            if wuxing[0] == sorted_scores[0][0] and wuxing[1] == sorted_scores[4][0]:
-                texts.append(situations_text["剧烈震荡"])
-            elif wuxing[0] == sorted_scores[0][0]:
-                texts.append(situations_text["单边涨"])
-            elif wuxing[0] == sorted_scores[4][0]:
-                texts.append(situations_text["单边跌"])
-            elif wuxing[1] == sorted_scores[0][0]:
-                texts.append(situations_text["单边涨"])
-            elif wuxing[1] == sorted_scores[4][0]:
-                texts.append(situations_text["单边跌"])
-            else:
-                texts.append(situations_text["横盘"])
+        if wuxing[0] == sorted_scores[0][0] and wuxing[1] == sorted_scores[4][0]:
+            texts.append(situations_text["剧烈震荡"])
+        elif wuxing[0] == sorted_scores[0][0]:
+            texts.append(situations_text["单边涨"])
+        elif wuxing[0] == sorted_scores[4][0]:
+            texts.append(situations_text["单边跌"])
+        elif wuxing[1] == sorted_scores[0][0]:
+            texts.append(situations_text["单边涨"])
+        elif wuxing[1] == sorted_scores[4][0]:
+            texts.append(situations_text["单边跌"])
+        else:
+            texts.append(situations_text["横盘"])
+
         return texts
         
 
-    def month_forecast(liuyue_wuxing, texts):
+    def month_forecast(month_wuxing, texts):
         prompt = f"""
         你是一个算命大师主要负责内容扩写，
         我现在提供给你对应的文案```{texts}```，
@@ -193,7 +202,7 @@ def get_asset_rules(name, year, month, day, time, pc=None):
             model="gpt-3.5-turbo-1106",
             messages=[
                 {"role": "system", "content": prompt},
-                {"role": "user", "content": f"流月五行为：{liuyue_wuxing} \n\n 文案：{texts}"} 
+                {"role": "user", "content": f"月五行为：{month_wuxing} \n\n 文案：{texts}"} 
             ],
             # max_tokens=2048,
             temperature=1,
@@ -207,10 +216,11 @@ def get_asset_rules(name, year, month, day, time, pc=None):
         except:
             string_res = completion.choices[0].message.content.strip()
             print(string_res)
-    scores, liuyue_wuxing = wuxing_liuyue(name, year, month, day, time, pc=pc)
-    texts = guanxi(scores, liuyue_wuxing)
+
+    scores, month_wuxing = wuxing_liuyue(name, year, month, day, time, pc=pc)
+    texts = guanxi(scores, month_wuxing)
     import datetime
-    current_month = datetime.datetime.now().month
-    forcast = month_forecast(liuyue_wuxing[current_month-1], texts[current_month-1])    
+    current_month = datetime.now().month
+    forcast = month_forecast(month_wuxing, texts)    
     print(f"{start}月运势预测：{end}")
-    print(f"流月五行为{liuyue_wuxing[current_month-1]}。"+forcast)
+    print(f"{current_month+1}月五行为{month_wuxing}。"+forcast)
