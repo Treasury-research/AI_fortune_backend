@@ -219,8 +219,7 @@ def get_asset_rules(name, year, month, day, time, pc=None):
 
     scores, month_wuxing = wuxing_liuyue(name, year, month, day, time, pc=pc)
     texts = guanxi(scores, month_wuxing)
-    import datetime
-    current_month = datetime.datetime.now().month
+    current_month = datetime.now().month
     forcast = month_forecast(month_wuxing, texts)    
     print(f"{start}月运势预测：{end}")
     print(f"{current_month+1}月五行为{month_wuxing}。"+forcast)
