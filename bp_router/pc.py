@@ -101,7 +101,11 @@ def baziMatchRes():
         except:
             return jsonify({"error":"无效的数据格式"}, 400)
         conversation_id = request.get_json().get("conversation_id")
-        birthday_user = tidb_manager.select_user(user_id,birthday=True)[0]
+        birthday_user = tidb_manager.select_user(user_id,birthday=True)
+        if birthday_user is None:
+            pass
+        else:
+            birthday_user = birthday_user[0]
         if matcher_type==1: # 与他人匹配
             match_res = baziMatch(birthday_user.year,birthday_user.month,birthday_user.day,birthday_user.hour, year,month,day,t_ime)
             op = options(year=year,month=month,day=day,time=t_ime,n=gender)
@@ -135,16 +139,19 @@ def baziMatchRes():
                 name, birthday, report= res[0], res[1], res[2]
             guaxiang = get_guaxiang()
             background = get_background(name,birthday)
+
             logging.info(f"data is {birthday.year, birthday.month, birthday.day, birthday.hour}")
             first_reply_rules = get_asset_rules(name, birthday.year, birthday.month, birthday.day, birthday.hour, pc=True)
-            bazi_id = tidb_manager.select_bazi_id(user_id=user_id)
             first_reply = first_reply_rules + "</b>资产报告：<b>"+'\n' + report +"\n</b>卦象：<b>"+ '\n'+ guaxiang
-            bazi_info, bazi_info_gpt = tidb_manager.select_chat_bazi(bazi_id=bazi_id, bazi_info=True, bazi_info_gpt=True)
+            (mingyun_analysis,chushen_analysis),bazi_info_gpt = bazipaipan(birthday.year, birthday.month, birthday.day,
+                                                                           birthday.hour,False,name=name)
+            op = options(year=birthday.year,month=birthday.month,day=birthday.day,time=birthday.hour,n=False)
+            bazi_info = baziAnalysis(op,mingyun_analysis,chushen_analysis)
             head = f"资产的信息如下：\n"
             person_prefix = f"本人的信息如下：\n"
             db_res = head + first_reply + person_prefix + bazi_info
             db_res_gpt = head + first_reply_rules + "\n" + background + person_prefix + bazi_info_gpt
-            tidb_manager.insert_bazi_chat(user_id, conversation_id, db_res, db_res_gpt, first_reply, matcher_id=matcher_id, matcher_type=matcher_type)
+            tidb_manager.insert_bazi_chat("", conversation_id, db_res, db_res_gpt, first_reply, matcher_id=matcher_id, matcher_type=matcher_type)
             # 如果需要翻译成英文
             if lang=="En":
                 result_text = translate(first_reply)
