@@ -142,7 +142,7 @@ def baziMatchRes():
 
             logging.info(f"data is {birthday.year, birthday.month, birthday.day, birthday.hour}")
             first_reply_rules = get_asset_rules(name, birthday.year, birthday.month, birthday.day, birthday.hour, pc=True)
-            first_reply = first_reply_rules + "</b>资产报告：<b>"+'\n' + report +"\n</b>卦象：<b>"+ '\n'+ guaxiang
+            first_reply = first_reply_rules + "<b>资产报告：</b>"+'\n' + report +"\n<b>卦象：</b>"+ '\n'+ guaxiang
             (mingyun_analysis,chushen_analysis),bazi_info_gpt = bazipaipan(birthday.year, birthday.month, birthday.day,
                                                                            birthday.hour,False,name=name)
             op = options(year=birthday.year,month=birthday.month,day=birthday.day,time=birthday.hour,n=False)

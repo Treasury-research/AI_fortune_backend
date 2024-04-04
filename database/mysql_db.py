@@ -262,31 +262,21 @@ class TiDBManager:
         self.db.commit()
 
     def select_tg_bot_bazi_id(self,conversation_id):
-        params = {'conversation_id': conversation_id}  # 使用字典来传递参数
-        sql = f"SELECT bazi_id FROM AI_fortune_tg_bot_conversation_user_test WHERE conversation_id=%(conversation_id)"
+        sql = f"SELECT bazi_id FROM AI_fortune_tg_bot_conversation_user_test WHERE conversation_id={conversation_id}".format(conversation_id)
+        print(sql)
         with self.db.cursor() as cursor:
             # 执行查询
-            cursor.execute(sql, params)
+            cursor.execute(sql)
             # 获取查询结果
             result = cursor.fetchone()
         return result
     
-    def select_tg_bot_bazi_info(self,bazi_id):
-        params = {'bazi_id': bazi_id}  # 使用字典来传递参数
-        sql = f"SELECT bazi_id FROM AI_fortune_bazi_chat_test WHERE bazi_id=%(bazi_id)"
-        with self.db.cursor() as cursor:
-            # 执行查询
-            cursor.execute(sql, params)
-            # 获取查询结果
-            result = cursor.fetchone()
-        return result
     
     def select_tg_bot_bazi_info(self,bazi_id):
-        params = {'bazi_id': bazi_id}  # 使用字典来传递参数
-        sql = f"SELECT bazi_id FROM AI_fortune_bazi_chat_test WHERE bazi_id=%(bazi_id)"
+        sql = "SELECT bazi_id FROM AI_fortune_bazi_chat_test WHERE bazi_id= %s"
         with self.db.cursor() as cursor:
             # 执行查询
-            cursor.execute(sql, params)
+            cursor.execute(sql, (bazi_id))
             # 获取查询结果
             result = cursor.fetchone()
         return result
@@ -300,7 +290,7 @@ class TiDBManager:
             sql = """
             SELECT human_message, AI_message FROM AI_fortune_conversation_test WHERE bazi_id = %s AND is_reset = 0 ORDER BY createdAt
             """
-            cursor.execute(sql, (bazi_id,))
+            cursor.execute(sql, (bazi_id))
             result = cursor.fetchall()
             if result:
                 return result
