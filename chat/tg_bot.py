@@ -86,22 +86,34 @@ class tg_bot_ChatGPT_assistant:
             user_message = "Please provide the response in English: "+user_message
         else:
             user_message = "Please provide the response in Chinese: "+user_message
-        message = client.beta.threads.messages.create(
-            thread_id=self.thread_id,
-            role="user",
-            content= user_message,
+        res = client.chat.completions.create(
+            model="gpt-4-0125-preview",
+            messages=user_message,
+            stream=True
         )
+        answer = ""
+        for chunk in res:
+            data = chunk.choices[0].delta.content
+            if data is not None:
+                answer += data
+                yield data
+        # message = client.beta.threads.messages.create(
+        #     thread_id=self.thread_id,
+        #     role="user",
+        #     content= user_message,
+        # )
 
-        run = client.beta.threads.runs.create( 
-            thread_id=self.thread_id,
-            assistant_id=self.assistant_id)
-        self.run_id = run.id
-        self.wait_on_run(run,self.thread_id,user_message)
-        messages = client.beta.threads.messages.list(thread_id=self.thread_id)
-        res = messages.data[0].content[0].text.value
-        res = self.remove_brackets_content(res)
-        logging.info(f"final res:{res}")
-        yield res
+        # run = client.beta.threads.runs.create( 
+        #     thread_id=self.thread_id,
+        #     assistant_id=self.assistant_id)
+        # self.run_id = run.id
+        # self.wait_on_run(run,self.thread_id,user_message)
+        # messages = client.beta.threads.messages.list(thread_id=self.thread_id)
+        # res = messages.data[0].content[0].text.value
+        # res = self.remove_brackets_content(res)
+        logging.info(f"final res:{answer}")
+        yield answer
+        
     def remove_brackets_content(self,sentence):
         import re
         # 使用正则表达式匹配"【】"及其内部的内容，并将其替换为空
