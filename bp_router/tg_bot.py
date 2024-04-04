@@ -61,7 +61,8 @@ def tg_bot_chat():
     conversation_id = data.get('conversation_id')
     user_message = data.get('message')
     lang = data.get('lang')
-    chat = tg_bot_ChatGPT_assistant(conversation_id,lang)
+    chat = tg_bot_ChatGPT_assistant(conversation_id, lang=lang, matcher_type=0,message=user_message)
+    logging.info(f"conversation_id {conversation_id}, message {user_message}")
     # Initialize or retrieve existing ChatGPT instance for the user
     return Response(chat.ask_gpt_stream(user_message), mimetype="text/event-stream")
 

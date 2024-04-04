@@ -261,6 +261,52 @@ class TiDBManager:
             cursor.execute(sql, (generated_uuid,conversation_id, user_id, bazi_id))
         self.db.commit()
 
+    def select_tg_bot_bazi_id(self,conversation_id):
+        params = {'conversation_id': conversation_id}  # 使用字典来传递参数
+        sql = f"SELECT bazi_id FROM AI_fortune_tg_bot_conversation_user_test WHERE conversation_id=%(conversation_id)"
+        with self.db.cursor() as cursor:
+            # 执行查询
+            cursor.execute(sql, params)
+            # 获取查询结果
+            result = cursor.fetchone()
+        return result
+    
+    def select_tg_bot_bazi_info(self,bazi_id):
+        params = {'bazi_id': bazi_id}  # 使用字典来传递参数
+        sql = f"SELECT bazi_id FROM AI_fortune_bazi_chat_test WHERE bazi_id=%(bazi_id)"
+        with self.db.cursor() as cursor:
+            # 执行查询
+            cursor.execute(sql, params)
+            # 获取查询结果
+            result = cursor.fetchone()
+        return result
+    
+    def select_tg_bot_bazi_info(self,bazi_id):
+        params = {'bazi_id': bazi_id}  # 使用字典来传递参数
+        sql = f"SELECT bazi_id FROM AI_fortune_bazi_chat_test WHERE bazi_id=%(bazi_id)"
+        with self.db.cursor() as cursor:
+            # 执行查询
+            cursor.execute(sql, params)
+            # 获取查询结果
+            result = cursor.fetchone()
+        return result
+    
+    def get_tg_bot_conversation(self,bazi_id):
+        """
+        data type:<class 'tuple'>
+        data example:   (('我的运势怎么样', '你的运势...'), ('你好，我的八字是什么？', '根据你提供的知识...'))
+        """
+        with self.db.cursor() as cursor:
+            sql = """
+            SELECT human_message, AI_message FROM AI_fortune_conversation_test WHERE bazi_id = %s AND is_reset = 0 ORDER BY createdAt
+            """
+            cursor.execute(sql, (bazi_id,))
+            result = cursor.fetchall()
+            if result:
+                return result
+            else:
+                logging.info(f"No data in database, where conversation_id is{bazi_id}")
+    
     def insert_conversation(self, conversation_id, human_message=None, AI_message=None, bazi_id=None, user_id=None):
         generated_uuid = str(uuid.uuid4())
         with self.db.cursor() as cursor:
