@@ -7,6 +7,7 @@ from collections import OrderedDict
 from openai import OpenAI
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+import cn2an
 
 
 client = OpenAI()
@@ -70,7 +71,7 @@ def get_asset_rules(name, year, month, day, time, pc=None):
         start="🔹"
         end = ""     
 
-    def wuxing_liuyue(name, year, month, day, time, pc=None):
+    def wuxing_liuyue(name, year, month, day, time, lunar_date, pc=None):
 
         solar_birthday = sxtwl.fromSolar(int(year), int(month),int(day))  # 公历生日
         Lleap = "闰" if solar_birthday.isLunarLeap() else ""
@@ -134,28 +135,13 @@ def get_asset_rules(name, year, month, day, time, pc=None):
         else:
             print("八字中五行相对缺"+"，".join(missing)+"。")
         
-        # yun = eightWord.getYun(1) # 运
-        # daYunArr = yun.getDaYun() # 大运
-        # liuNianArr = daYunArr[0].getLiuNian() # 流年
-        # if len(liuNianArr)>0:
-        #     liuYueArr = liuNianArr[0].getLiuYue() # 流月
-        # else:
-        #     yun = eightWord.getYun(0) # 运
-        #     daYunArr = yun.getDaYun() # 大运
-        #     liuNianArr = daYunArr[0].getLiuNian() # 流年
-        #     liuYueArr = liuNianArr[0].getLiuYue() # 流月
-        # # 将流月与五行进行对应
-        # liuyue_wuxing = []
-        # for liuYue in liuYueArr:
-        #     ganzhi = liuYue.getGanZhi()
-        #     wuxing = gan5[ganzhi[0]] + zhi1[ganzhi[1]]
-        #     liuyue_wuxing.append(wuxing)
-        current_date = datetime.now()
-        date = Lunar.fromDate(current_date)
-        next_month = current_date + relativedelta(months=1)
-        date = Lunar.fromDate(next_month)
-        gz = date.getMonthInGanZhi()
-        month_wuxing = gan5[gz[0]] + zhi1[gz[1]]
+
+        if lunar_date.getDay() <= 15:
+            next_lunar_month = lunar_date.next(31)
+        else:
+            next_lunar_month = lunar_date.next(16)
+        gz = next_lunar_month.getMonthInGanZhi()
+        month_wuxing = gan5[gz[0]] + zhi1[gz[1]]    
 
         return scores, month_wuxing
 
@@ -163,8 +149,8 @@ def get_asset_rules(name, year, month, day, time, pc=None):
     def guanxi(scores, wuxing):
         # 对五行得分进行大小排序
         # 计算规则：根据五行得分对五行进行大小排列后，流月五行与它的关系，得出以下4种情况
-        # 1. 单边涨：流月至少一个五行与得分最大五行相同
-        # 2. 单边跌：流月至少一个五行与得分最小五行相同
+        # 1. 单边涨：流月至少一个五行与得分最小五行相同
+        # 2. 单边跌：流月至少一个五行与得分最大五行相同
         # 3. 横盘：流月五行与得分最大最小五行都无关
         # 4. 剧烈震荡：流月五行一个与最大相同，一个与最小相同
         sorted_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)
@@ -174,13 +160,13 @@ def get_asset_rules(name, year, month, day, time, pc=None):
         if wuxing[0] == sorted_scores[0][0] and wuxing[1] == sorted_scores[4][0]:
             texts.append(situations_text["剧烈震荡"])
         elif wuxing[0] == sorted_scores[0][0]:
-            texts.append(situations_text["单边涨"])
+            texts.append(situations_text["单边跌"])
         elif wuxing[0] == sorted_scores[4][0]:
-            texts.append(situations_text["单边跌"])
-        elif wuxing[1] == sorted_scores[0][0]:
             texts.append(situations_text["单边涨"])
-        elif wuxing[1] == sorted_scores[4][0]:
+        elif wuxing[1] == sorted_scores[0][0]:
             texts.append(situations_text["单边跌"])
+        elif wuxing[1] == sorted_scores[4][0]:
+            texts.append(situations_text["单边涨"])
         else:
             texts.append(situations_text["横盘"])
 
@@ -217,9 +203,11 @@ def get_asset_rules(name, year, month, day, time, pc=None):
             string_res = completion.choices[0].message.content.strip()
             print(string_res)
 
-    scores, month_wuxing = wuxing_liuyue(name, year, month, day, time, pc=pc)
+    lunar_date = Lunar.fromDate(datetime.now())
+    next_lunar_month = lunar_date.getMonth() + 1
+    next_lunar_month = cn2an.an2cn(next_lunar_month, "low")    
+    scores, month_wuxing = wuxing_liuyue(name, year, month, day, time, lunar_date, pc=pc)
     texts = guanxi(scores, month_wuxing)
-    current_month = datetime.now().month
     forcast = month_forecast(month_wuxing, texts)    
     print(f"{start}月运势预测：{end}")
-    print(f"{current_month+1}月五行为{month_wuxing}。"+forcast)
+    print(f"今天是阴历{lunar_date}，下个月为阴历{next_lunar_month}月,五行为{month_wuxing}。"+forcast)
