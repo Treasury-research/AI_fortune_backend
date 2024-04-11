@@ -62,9 +62,9 @@ def baziAnalysis_stream():
         # 由于是本人，因此是插入或者修改
         # 如果user_id带有，那就是update操作，把之前的信息is_deleted设为1，表示重新开始对话。（因为背景信息会有所变化，对话重新开始）
         # 如果有account 则是已经存储;没有account 就是修改
-        if user_id and account is None:
+        if user_id not in ['',None] and account is ['',None]:
             tidb_manager.update_reset_delete(conversation_id=conversation_id)
-        elif user_id == "" and account is None:
+        elif user_id in ['',None] and account in ['',None]:
             user_id = str(uuid.uuid4())
         tidb_manager.insert_bazi_chat(user_id, conversation_id, bazi_info, bazi_info_gpt, first_reply)
         tidb_manager.upsert_user(user_id, birthday=birthday, name=name, gender=gender, account=account) # gender 0 为男，1 为女
