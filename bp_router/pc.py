@@ -157,8 +157,6 @@ def baziMatchRes():
             saved_bazi_info = assets_info[0]
             saved_bazi_info_gpt = assets_info[1]
             saved_first_reply = assets_info[2]
-            print(f"assets_info is :{assets_info}")
-            print(f"saved_bazi_info is :{saved_bazi_info}")
             if (saved_bazi_info not in ['',None]):
                 bazi_info = saved_bazi_info
             else:
