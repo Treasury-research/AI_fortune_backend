@@ -132,10 +132,12 @@ def get_asset_rules(name, year, month, day, time, pc=None):
         else:
             output[-1] += "八字中五行诸全，五行不缺。"
 
-        if lunar_date.getDay() <= 15:
-            next_lunar_month = lunar_date.next(31)
-        else:
-            next_lunar_month = lunar_date.next(16)
+        # 得到当前节
+        jie = lunar_date.getPrevJie(True)
+        jie_lunar = jie.getSolar().getLunar()
+        # 得到下一个气
+        qi = jie_lunar.getNextQi(True)
+        next_lunar_month = qi.getSolar().getLunar()
         gz = next_lunar_month.getMonthInGanZhi()
         month_wuxing = gan5[gz[0]] + zhi1[gz[1]]
 
@@ -180,6 +182,7 @@ def get_asset_rules(name, year, month, day, time, pc=None):
         """
 
         completion = client.chat.completions.create(
+            # TODO: 使用3.5还是4？
             model="gpt-3.5-turbo-1106",
             messages=[
                 {"role": "system", "content": prompt},
@@ -204,7 +207,7 @@ def get_asset_rules(name, year, month, day, time, pc=None):
     scores, month_wuxing = wuxing_liuyue(name, year, month, day, time, lunar_date, pc=pc)
     texts = guanxi(scores, month_wuxing)
     forcast = month_forecast(month_wuxing, texts)    
-    output.append(f"{start}当前月运势预测：{end}" + f"今天是阴历{lunar_date}，下个月为阴历{next_lunar_month}月,五行为{month_wuxing}。"+forcast)
+    output.append(f"{start}当前月运势预测：{end}" + f"当月五行为{month_wuxing}。"+forcast)
     # print(f"{start}当前月运势预测：{end}")
     # print(f"今天是阴历{lunar_date}，下个月为阴历{next_lunar_month}月,五行为{month_wuxing}。"+forcast)
     return output
