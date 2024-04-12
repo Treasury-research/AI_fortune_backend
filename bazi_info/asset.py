@@ -207,7 +207,7 @@ def get_asset_rules(name, year, month, day, time, pc=None):
     scores, month_wuxing = wuxing_liuyue(name, year, month, day, time, lunar_date, pc=pc)
     texts = guanxi(scores, month_wuxing)
     forcast = month_forecast(month_wuxing, texts)    
-    output.append(f"{start}当前月运势预测：{end}" + f"当月五行为{month_wuxing}。"+forcast)
+    output.append(f"{start}当前月运势预测：{end}\n" + f"当月五行为{month_wuxing}。"+forcast)
     # print(f"{start}当前月运势预测：{end}")
     # print(f"今天是阴历{lunar_date}，下个月为阴历{next_lunar_month}月,五行为{month_wuxing}。"+forcast)
     return output

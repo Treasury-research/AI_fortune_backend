@@ -273,6 +273,7 @@ def question_rec():
     matcher_type = data.get('matcher_type')
     lang = request.headers.get('Lang')
     logging.info(f"matcher_type is :{matcher_type}")
+    questions  = []
     # 获取精确批文 和 thread_id
     tidb_manager = TiDBManager()
     if user_message:

@@ -85,7 +85,6 @@ class TiDBManager:
         """
         with self.db.cursor() as cursor:
             sql = "UPDATE AI_fortune_assets_test SET bazi_info = %s, bazi_info_gpt = %s, first_reply = %s WHERE id=%s"
-            print(sql, (bazi_info, bazi_info_gpt, first_reply,matcher_id))
             cursor.execute(sql, (bazi_info, bazi_info_gpt, first_reply,matcher_id))
         self.db.commit()
 
