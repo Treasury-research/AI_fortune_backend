@@ -79,6 +79,37 @@ class TiDBManager:
             # 获取查询结果
             result = cursor.fetchone()
         return result
+    def update_infos_in_to_asset(self, matcher_id,bazi_info,bazi_info_gpt,first_reply):
+        """
+            更新资产信息中的八字信息
+        """
+        with self.db.cursor() as cursor:
+            sql = "UPDATE AI_fortune_assets_test SET bazi_info = %s, bazi_info_gpt = %s, first_reply = %s WHERE id=%s"
+            print(sql, (bazi_info, bazi_info_gpt, first_reply,matcher_id))
+            cursor.execute(sql, (bazi_info, bazi_info_gpt, first_reply,matcher_id))
+        self.db.commit()
+
+
+    def select_infos_byid(self, matcher_id):
+        """
+            查询资产信息中的八字信息
+        """
+        # with self.db.cursor() as cursor:
+        #     sql = "select bazi_info, bazi_info_gpt, first_reply  FROM AI_fortune_assets_test WHERE id=%s"
+        #     cursor.execute(sql, (matcher_id))
+        # self.db.commit()
+        sql = "select bazi_info, bazi_info_gpt, first_reply  FROM AI_fortune_assets_test WHERE id=%s"
+        with self.db.cursor() as cursor:
+            # 执行查询
+            cursor.execute(sql, matcher_id)
+            # 获取查询结果
+            result = cursor.fetchone()
+        # 如果查询结果不为 None，则返回结果
+        if result is not None:
+            return result
+        else:
+            # 如果查询结果为 None，则返回三个空数组
+            return [None,None,None]
 
     def insert_bazi_chat(self, user_id, conversation_id, bazi_info, bazi_info_gpt, first_reply, assistant_id=None, thread_id=None, matcher_id=None, matcher_type=None, is_deleted=0):
         bazi_id = str(uuid.uuid4())

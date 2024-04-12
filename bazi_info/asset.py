@@ -62,15 +62,15 @@ def capture_print(func):
     return wrapper
 
 
-@capture_print
+# @capture_print
 def get_asset_rules(name, year, month, day, time, pc=None):
     if pc:
         start = "<b>"
         end = "</b>"
     else:
         start="🔹"
-        end = ""     
-
+        end = ""
+    output=[]
     def wuxing_liuyue(name, year, month, day, time, lunar_date, pc=None):
 
         solar_birthday = sxtwl.fromSolar(int(year), int(month),int(day))  # 公历生日
@@ -80,13 +80,10 @@ def get_asset_rules(name, year, month, day, time, pc=None):
 
         zodiac = lunar_birthday.getYearShengXiao() # 生肖
         eightWord = lunar_birthday.getEightChar() # 八字
-        print(f"{start}Name: {end}{name}")
-        print(f"{start}公历：{end}", end='')
-        print("{}年{}月{}日{}时".format(solar_birthday.getSolarYear(), solar_birthday.getSolarMonth(), solar_birthday.getSolarDay(),eightWord.getTime()[1]))
-        print(f"{start}农历：{end}", end='')
-        print("{}年{}{}月{}日{}时".format(solar_birthday.getLunarYear(), Lleap, solar_birthday.getLunarMonth(), solar_birthday.getLunarDay(),eightWord.getTime()[1]))
-
-        print(f"{start}八字：{end}{eightWord}")
+        output.append(f"{start}名字: {end}{name}")
+        output.append(f"{start}公历：{end} "+ "{}年{}月{}日{}时".format(solar_birthday.getSolarYear(), solar_birthday.getSolarMonth(), solar_birthday.getSolarDay(),eightWord.getTime()[1]))
+        output.append(f"{start}农历：{end} " + "{}年{}{}月{}日{}时".format(solar_birthday.getLunarYear(), Lleap, solar_birthday.getLunarMonth(), solar_birthday.getLunarDay(),eightWord.getTime()[1]))
+        output.append(f"{start}八字：{end}{eightWord}")
         gz = solar_birthday.getHourGZ(int(time))
         yTG = solar_birthday.getYearGZ()
         mTG = solar_birthday.getMonthGZ()
@@ -112,9 +109,8 @@ def get_asset_rules(name, year, month, day, time, pc=None):
         shishen.extend(shishishen)
 
         wuXing = lunar_birthday.getBaZiWuXing()  # 五行
-        print(f"{start}五行：{end}", end='')
-        print(' '.join(wuXing))
-        print(f"{start}命主：{end}{mingzhu}{wuXing[2][0]}")
+        output.append(f"{start}五行：{end}"+ " ".join(wuXing))
+        output.append(f"{start}命主：{end}{mingzhu}{wuXing[2][0]}")
         scores = {"金":0, "木":0, "水":0, "火":0, "土":0} # 五行分数
         for item in gans:  
             scores[gan5[item]] += 5
@@ -125,23 +121,23 @@ def get_asset_rules(name, year, month, day, time, pc=None):
 
         elements_with_scores = [f"{element}{score}" for element, score in scores.items()]
         wuxing_scores = "，".join(elements_with_scores)
-        print(f"{start}五行得分：{end}{wuxing_scores}")
-        print(f"{start}五行是否有缺：{end}", end='')
+        output.append(f"{start}五行得分：{end}{wuxing_scores}")
+        output.append(f"{start}五行是否有缺：{end}")
         all_elements = {'金', '木', '水', '火', '土'}
         elements = set(''.join(wuXing))
         missing = all_elements - elements
         if len(missing)==0:
-            print("八字中五行诸全，五行不缺。")
+            output[-1] += "八字中五行诸全，五行不缺。"
+            # print("八字中五行诸全，五行不缺。")
         else:
-            print("八字中五行相对缺"+"，".join(missing)+"。")
-        
+            output[-1] += "八字中五行诸全，五行不缺。"
 
         if lunar_date.getDay() <= 15:
             next_lunar_month = lunar_date.next(31)
         else:
             next_lunar_month = lunar_date.next(16)
         gz = next_lunar_month.getMonthInGanZhi()
-        month_wuxing = gan5[gz[0]] + zhi1[gz[1]]    
+        month_wuxing = gan5[gz[0]] + zhi1[gz[1]]
 
         return scores, month_wuxing
 
@@ -171,7 +167,6 @@ def get_asset_rules(name, year, month, day, time, pc=None):
             texts.append(situations_text["横盘"])
 
         return texts
-        
 
     def month_forecast(month_wuxing, texts):
         prompt = f"""
@@ -201,7 +196,7 @@ def get_asset_rules(name, year, month, day, time, pc=None):
 
         except:
             string_res = completion.choices[0].message.content.strip()
-            print(string_res)
+            return string_res
 
     lunar_date = Lunar.fromDate(datetime.now())
     next_lunar_month = lunar_date.getMonth() + 1
@@ -209,5 +204,7 @@ def get_asset_rules(name, year, month, day, time, pc=None):
     scores, month_wuxing = wuxing_liuyue(name, year, month, day, time, lunar_date, pc=pc)
     texts = guanxi(scores, month_wuxing)
     forcast = month_forecast(month_wuxing, texts)    
-    print(f"{start}月运势预测：{end}")
-    print(f"今天是阴历{lunar_date}，下个月为阴历{next_lunar_month}月,五行为{month_wuxing}。"+forcast)
+    output.append(f"{start}当前月运势预测：{end}" + f"今天是阴历{lunar_date}，下个月为阴历{next_lunar_month}月,五行为{month_wuxing}。"+forcast)
+    # print(f"{start}当前月运势预测：{end}")
+    # print(f"今天是阴历{lunar_date}，下个月为阴历{next_lunar_month}月,五行为{month_wuxing}。"+forcast)
+    return output
