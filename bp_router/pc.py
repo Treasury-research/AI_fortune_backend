@@ -152,7 +152,7 @@ def baziMatchRes():
 
             #  获取资产的八字信息
             head = f"资产的信息如下：\n"
-            person_prefix = f"本人的信息如下：\n"
+            person_prefix = f"资产的八字信息如下：\n"
             assets_info = tidb_manager.select_infos_byid(matcher_id=matcher_id)
             saved_bazi_info = assets_info[0]
             saved_bazi_info_gpt = assets_info[1]
