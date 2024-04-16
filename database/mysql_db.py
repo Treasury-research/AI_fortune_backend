@@ -292,7 +292,7 @@ class TiDBManager:
         self.db.commit()
 
     def select_tg_bot_bazi_id(self,conversation_id):
-        sql = f"SELECT bazi_id FROM AI_fortune_tg_bot_conversation_user_test WHERE conversation_id={conversation_id}".format(conversation_id)
+        sql = f"SELECT bazi_id FROM AI_fortune_tg_bot_conversation_user_test WHERE conversation_id='{conversation_id}'".format(conversation_id)
         print(sql)
         with self.db.cursor() as cursor:
             # 执行查询
@@ -300,8 +300,7 @@ class TiDBManager:
             # 获取查询结果
             result = cursor.fetchone()
         return result
-    
-    
+
     def select_tg_bot_bazi_info(self,bazi_id):
         sql = "SELECT bazi_id FROM AI_fortune_bazi_chat_test WHERE bazi_id= %s"
         with self.db.cursor() as cursor:
