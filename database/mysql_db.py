@@ -173,6 +173,15 @@ class TiDBManager:
             # 获取查询结果
             result = cursor.fetchone()
         return result
+    def select_tg_bot_chat_bazi(self,conversation_id=None):
+        params = {'conversation_id': conversation_id}  # 使用字典来传递参数
+        sql = f"SELECT bazi_info FROM AI_fortune_bazi_chat_test WHERE conversation_id=%(conversation_id)s ORDER BY createdAt DESC LIMIT 1"
+        with self.db.cursor() as cursor:
+            # 执行查询
+            cursor.execute(sql,params )
+            # 获取查询结果
+            result = cursor.fetchone()
+        return result
 
     def select_bazi_id(self, conversation_id=None, matcher_id=None, user_id=None):
         with self.db.cursor() as cursor:

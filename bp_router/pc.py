@@ -307,7 +307,7 @@ def question_rec():
                     "有什么改善风水和五行的建议？"
                 ]
         elif matcher_type==2:
-            pass
+            questions = []
         else:
             if lang=="En":
                 questions =  [

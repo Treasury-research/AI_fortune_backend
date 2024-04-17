@@ -6,7 +6,7 @@ from flask import Flask, Response, request, stream_with_context, jsonify, make_r
 from datetime import datetime, timedelta
 import uuid
 import logging
-
+import random
 from chat.tg_bot import tg_bot_ChatGPT_assistant
 from database.mysql_db import TiDBManager
 from database.redis_db import RedisManager
@@ -198,3 +198,78 @@ def tg_bot_bazi_info():
             result_text = first_reply
         logging.info("result_text")
         return Response(stream_output(None, None, result_text), mimetype="text/event-stream")
+
+@tg_bot.route('/question_rec', methods=['POST'])
+def question_rec():
+    data = request.get_json()
+    conversation_id = data.get('conversation_id')
+    user_message = data.get('message')
+    matcher_type = data.get('matcher_type')
+    lang = request.headers.get('Lang')
+    logging.info(f"matcher_type is :{matcher_type}")
+    # 获取精确批文 和 thread_id
+    tidb_manager = TiDBManager()
+    if user_message:
+        bazi_info = tidb_manager.select_tg_bot_chat_bazi(conversation_id=conversation_id)
+        # 如果user_message存在。 说明非首次回复
+        if lang=="En":
+            bazi_info = translate(bazi_info)
+        result = rec_question(bazi_info, user_message)
+    else:
+        if matcher_type == 1:
+            if lang=="En":
+                questions = [
+                "What is the personality like?",
+                "Are we suitable to start a business together?",
+                "How is the financial fortune?",
+                "How to make up for the lack of fire in the five elements?",
+                "When can getting married be expected?",
+                "What kind of job is right?",
+                "What is the lucky number?",
+                "When will a romantic phase occur?",
+                "Any suggestions for improving Feng Shui and the Five Elements?"
+                ]
+            else:
+                # 定义问题列表
+                questions = [
+                    "此人性格怎样？",
+                    "我和这个人适合合作创业吗？",
+                    "此人财运怎么样？",
+                    "五行缺火该怎么补？",
+                    "什么时候能结婚？",
+                    "什么样的工作适合这个人？",
+                    "幸运数字是什么？",
+                    "什么时候走桃花运？",
+                    "有什么改善风水和五行的建议？"
+                ]
+        elif matcher_type==2:
+            questions = []
+        else:
+            if lang=="En":
+                questions =  [
+                    "How is my financial fortune?",
+                    "When can I get married?",
+                    "What kind of job is right for me?",
+                    "How to make up for the lack of fire in the five elements?",
+                    "What's my lucky number?",
+                    "When can I have a girlfriend?",
+                    "Any suggestions for improving Feng Shui and the Five Elements?"
+                ]
+            # 定义问题列表
+            else:
+                questions = [
+                    "从我的财运怎么样？",
+                    "我什么时候能结婚？",
+                    "什么样的工作适合我？",
+                    "五行缺火该怎么补？",
+                    "我的幸运数字是什么？",
+                    "我什么时候走桃花运？",
+                    "有什么改善风水和五行的建议？"
+                ]
+        # 从问题库中随机给出
+        result = random.sample(questions, 3)
+
+    if result:
+        return jsonify({"status": "success", "data":result}, 200)
+    else:
+        return jsonify({"status": "database select Error"}, 500)
