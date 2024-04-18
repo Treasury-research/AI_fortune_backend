@@ -210,11 +210,12 @@ def question_rec():
     # 获取精确批文 和 thread_id
     tidb_manager = TiDBManager()
     if user_message:
-        bazi_info = tidb_manager.select_tg_bot_chat_bazi(conversation_id=conversation_id)
+        bazi_info = tidb_manager.select_tg_bot_chat_bazi(conversation_id=conversation_id)[0]
+        print(bazi_info)
         # 如果user_message存在。 说明非首次回复
         if lang=="En":
             bazi_info = translate(bazi_info)
-        result = rec_question(bazi_info, user_message)
+        result = rec_question(bazi_info, user_message, lang)
     else:
         if matcher_type == 1:
             if lang=="En":

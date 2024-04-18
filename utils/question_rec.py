@@ -2,7 +2,7 @@ from openai import OpenAI
 import json
 import random
 client = OpenAI()
-def rec_question(bazi_info_gpt,user_message,lang=None):
+def rec_question(bazi_info_gpt,user_message,lang):
     if lang=="En":
         system_prompt = f""""
     You are a master at asking questions. Below are some background knowledge and sample questions on the Eight Characteristics, which require you to generate three more Eight Character Numerology questions related to the background knowledge and sample questions.
