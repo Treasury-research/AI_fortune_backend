@@ -205,7 +205,7 @@ def question_rec():
     conversation_id = data.get('conversation_id')
     user_message = data.get('message')
     matcher_type = data.get('matcher_type')
-    lang = request.headers.get('Lang')
+    lang = data.get('lang')
     logging.info(f"matcher_type is :{matcher_type}")
     # 获取精确批文 和 thread_id
     tidb_manager = TiDBManager()
