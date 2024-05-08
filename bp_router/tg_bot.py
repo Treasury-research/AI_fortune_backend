@@ -26,7 +26,7 @@ def tg_bot_first_visit():
         data = request.get_json()
         conversation_id = data['conversation_id']
         tidb_manager = TiDBManager()
-        res = tidb_manager.select_user(user_id==conversation_id, name=True)
+        res = tidb_manager.select_user(conversation_id, name=True)
         if res:
             return jsonify({"status": "success, not first time.", "data": 0,"status_code":200})
         else:
