@@ -11,6 +11,7 @@ from chat.tg_bot import tg_bot_ChatGPT_assistant
 from database.mysql_db import TiDBManager
 from database.redis_db import RedisManager
 from bazi_info.bazi import baziAnalysis
+from bazi_info.asset import get_asset_rules
 from bazi_info.bazi_match import baziMatch
 from bazi_info.bazi_gpt import bazipaipan
 from utils.options_class import options
@@ -105,6 +106,7 @@ def tg_bot_bazi_insert():
         return Response(stream_output(None,user_id,result_text), mimetype="text/event-stream")
 
     elif matcher_type == 1:
+        # 匹配其他人
         birthday_user = tidb_manager.select_user(user_id,birthday=True)
         year_match, month_match, day_match, time_match = map(int, birthday.split('-'))
         if matcher_id:
@@ -114,7 +116,7 @@ def tg_bot_bazi_insert():
             birthday_match = datetime(year_match, month_match, day_match, time_match)
             matcher_id = str(uuid.uuid4())
             tidb_manager.upsert_matcherPerson(matcher_id, gender, birthday, user_id, name=name)
-
+        birthday_user = birthday_user[0]
         res_match = baziMatch(birthday_user.year,birthday_user.month,birthday_user.day,birthday_user.hour, year_match,month_match,day_match,time_match)
         op = options(year=year_match,month=month_match,day=day_match,time=time_match,n=gender)
         (mingyun_analysis,chushen_analysis),bazi_info_gpt = bazipaipan(year_match,month_match,day_match,time_match,gender,name=name,tg_bot=True)
@@ -134,26 +136,49 @@ def tg_bot_bazi_insert():
 
 
 
-    elif matcher_type==2: # 配对资产
-        birthday_user = tidb_manager.select_birthday(user_id)
-        year_match, month_match, day_match, time_match = map(int, birthday.split('-'))
+    elif matcher_type==2:
         if matcher_id:
-            birthday_match = tidb_manager.select_birthday(matcher_type=2,matcher_id=matcher_id)
-            year_match,month_match,day_match,time_match = birthday_match.year,birthday_match.month,birthday_match.day,birthday_match.hour
+            res = tidb_manager.select_asset(matcher_id=matcher_id)
+            name, birthday, report= res[0], res[1], res[2]
         else:
-            birthday_match = datetime(year_match, month_match, day_match, time_match)
-            matcher_id = tidb_manager.insert_asset(name, birthday_match,user_id=user_id)
-        res = baziMatch(birthday_user.year,birthday_user.month,birthday_user.day,birthday_user.hour, year_match,month_match,day_match,time_match,name=name)
-        logging.info(f"res is:{res}")
-        bazi_id = tidb_manager.insert_baziInfo(user_id, birthday_user,res, res, conversation_id, birthday_match=birthday_match, matcher_type=matcher_type, matcher_id=matcher_id,first_reply=res)
-        tidb_manager.insert_tg_bot_conversation_user(conversation_id, user_id, bazi_id)
+            raise ValueError("matcher_id is None")
+        guaxiang = get_guaxiang()
+        background = get_background(name,birthday)
+        logging.info(f"data is {birthday.year, birthday.month, birthday.day, birthday.hour}")
+        first_reply_rules = get_asset_rules(name, birthday.year, birthday.month, birthday.day, birthday.hour, pc=True)
+        logging.info("first_reply_rules is :{first_reply_rules}")
+        # first_reply 返回值是str 数组，需要进行拼接
+        first_reply_rules_str = ''.join(s +'\n' for s in first_reply_rules[:-1])
+        first_reply = first_reply_rules_str + "<b>资产报告：</b>"+'\n' + report + "\n" + first_reply_rules[-1] +"\n<b>卦象：</b>"+ '\n'+ guaxiang
+        (mingyun_analysis,chushen_analysis),bazi_info_gpt = bazipaipan(birthday.year, birthday.month, birthday.day,
+                                                                        birthday.hour,False,name=name)
+        op = options(year=birthday.year,month=birthday.month,day=birthday.day,time=birthday.hour,n=False)
 
+        #  获取资产的八字信息
+        head = f"资产的信息如下：\n"
+        person_prefix = f"资产的八字信息如下：\n"
+        assets_info = tidb_manager.select_infos_byid(matcher_id=matcher_id)
+        saved_bazi_info = assets_info[0]
+        saved_bazi_info_gpt = assets_info[1]
+        saved_first_reply = assets_info[2]
+        if (saved_bazi_info not in ['',None]):
+            bazi_info = saved_bazi_info
+        else:
+            bazi_info = baziAnalysis(op,mingyun_analysis,chushen_analysis)
+            tidb_manager.update_infos_in_to_asset(matcher_id=matcher_id,
+                                                    bazi_info=head + first_reply +"\n" + person_prefix + bazi_info,
+                                                    bazi_info_gpt='',
+                                                    first_reply='')
+        db_res = head + first_reply +"\n" + person_prefix + bazi_info
+        db_res_gpt = head + first_reply_rules_str + "\n" + background + person_prefix + bazi_info_gpt
+        tidb_manager.insert_bazi_chat("", conversation_id, db_res, db_res_gpt, first_reply, matcher_id=matcher_id, matcher_type=matcher_type)
         # 如果需要翻译成英文
         if lang=="En":
-            result_text = translate(res)
+            result_text = translate(first_reply)
         else:
-            result_text = res
+            result_text = first_reply
         return Response(stream_output(None, None, result_text), mimetype="text/event-stream")
+
     else:
         return jsonify({"status": f"POST data param type error! matcher type is number! where conversation_id={conversation_id}"}, 500)
 
