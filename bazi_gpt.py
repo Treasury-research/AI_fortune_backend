@@ -1,3 +1,5 @@
+from base import openai_base_conn
+
 import sxtwl
 import argparse
 import collections
