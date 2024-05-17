@@ -581,7 +581,7 @@ class ChatGPT_assistant:
         #         res = "请到本人八字聊天中进行详细咨询。"
         #         yield res
         #         return 
-        logging.info(f"开始聊天")
+        logger.info(f"开始聊天")
         if self.lang=='En':
             user_message = "Please provide the response in English: "+user_message
         else:
@@ -635,7 +635,7 @@ class ChatGPT_assistant:
         new_sentence = re.sub(r'【.*?】', '', sentence)
         return new_sentence
     
-    def wait_on_run(slef, run, thread_id,message=None):
+    def wait_on_run(self, run, thread_id,message=None):
         while run.status == "queued" or run.status == "in_progress":
             try:
                 # messages = get_messages(self.thread_id)
@@ -784,7 +784,7 @@ class tg_bot_ChatGPT_assistant:
         # 使用正则表达式匹配"【】"及其内部的内容，并将其替换为空
         new_sentence = re.sub(r'【.*?】', '', sentence)
         return new_sentence
-    def wait_on_run(slef, run, thread_id,message=None):
+    def wait_on_run(self, run, thread_id,message=None):
         while run.status == "queued" or run.status == "in_progress":
             try:
                 messages = get_messages(self.thread_id)
@@ -998,6 +998,7 @@ def baziAnalysis_stream():
             return jsonify({"error":"无效的日期格式。请使用 YYYY-M-D-H 格式。"}, 400)
         op = options(year=year,month=month,day=day,time=time,g=g,b=b,n=n,r=r)
         output = baziAnalysis(op)
+        user_id = str(uuid.uuid4())
         return Response((output,user_id), content_type="text/plain; charset=utf-8")
 
 
