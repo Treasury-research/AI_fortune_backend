@@ -1403,4 +1403,5 @@ def test():
     return jsonify({"res":"test!"})
 
 if __name__ == "__main__":
+    logger.info("start server!!!!!!!!!!!!!!!")
     app.run(host='0.0.0.0', port=5000, debug=True)
