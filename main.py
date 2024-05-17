@@ -20,7 +20,9 @@ from datetime import datetime, timedelta
 import uuid
 import pymysql
 import tiktoken
-import logging
+
+from utils.log_utils import logger
+
 from bazi import baziAnalysis
 from al import baziMatch
 from lunar_python import Lunar, Solar
@@ -58,9 +60,9 @@ pool = PooledDB(
         "ssl_accept":"strict"
     }
 )
-# 配置日志记录
-logging.basicConfig(filename='AI_fortune.log', level=logging.INFO, encoding='utf-8',
-                    format='%(asctime)s - %(levelname)s - %(message)s')
+# # 配置日志记录
+# logging.basicConfig(filename='AI_fortune.log', level=logging.INFO, encoding='utf-8',
+#                     format='%(asctime)s - %(levelname)s - %(message)s')
 app = Flask(__name__)
 # 跨域支持
 CORS(app, resources=r'/*')
@@ -178,7 +180,7 @@ class TiDBManager:
             self.db.commit()
             return True
         except:
-            logging.info(f"database reset conversation error where conversation_id = {conversation_id}")
+            logger.info(f"database reset conversation error where conversation_id = {conversation_id}")
             return False
 
 
@@ -196,10 +198,10 @@ class TiDBManager:
                     """
                 cursor.execute(sql, (generated_uuid, conversation_id, human_message, AI_message))
             else:
-                logging.info(f"Insert conversation error where conversation_id = {conversation_id}")
+                logger.info(f"Insert conversation error where conversation_id = {conversation_id}")
                 return False
         self.db.commit()
-        logging.info(f"Insert conversation success where conversation_id = {conversation_id}")
+        logger.info(f"Insert conversation success where conversation_id = {conversation_id}")
 
 
     def get_user_id(self, conversation_id):
@@ -212,7 +214,7 @@ class TiDBManager:
             if result:
                 return result[0]
             else:
-                logging.info(f"No user_id in database, where conversation_id is{conversation_id}") 
+                logger.info(f"No user_id in database, where conversation_id is{conversation_id}")
                 return None
                 
     def get_conversation(self, conversation_id):
@@ -229,7 +231,7 @@ class TiDBManager:
             if result:
                 return result
             else:
-                logging.info(f"No data in database, where conversation_id is{conversation_id}") 
+                logger.info(f"No data in database, where conversation_id is{conversation_id}")
                 return None
 
             # content = f"""我想你作为一个命理占卜分析师。你的工作是根据我给定的中国传统命理占卜的生辰八字和对应的八字批文信息作为整个对话的背景知识进行问题的回答。
@@ -241,7 +243,7 @@ class TiDBManager:
             # """
     def insert_baziInfo(self, user_id, birthday, bazi_info, bazi_info_gpt,conversation_id, birthday_match=None, matcher_type=None, matcher_id=None,first_reply=None):
         generated_uuid = str(uuid.uuid4())
-        logging.info(f"insert_baziInfo{user_id, birthday, conversation_id}")
+        logger.info(f"insert_baziInfo{user_id, birthday, conversation_id}")
         with self.db.cursor() as cursor:
             if birthday_match:
                 if matcher_type: # matcher_type 代表是tg_bot
@@ -440,7 +442,7 @@ class ChatGPT_assistant:
             self.load_match_history()
         else:
             self.load_history()  # Load the conversation history
-        logging.info(f"{self.conversation_id}, {self.assistant_id},{self.thread_id}")
+        logger.info(f"{self.conversation_id}, {self.assistant_id},{self.thread_id}")
 
         
     def _is_own(self,message,asset=None):
@@ -463,14 +465,14 @@ class ChatGPT_assistant:
                 "type_":"xxxxx"
             }}
             问题:{message}"""})
-        logging.info("message")
+        logger.info("message")
         rsp = client.chat.completions.create(
             model="gpt-3.5-turbo-1106",                                          # 模型选择GPT 3.5 Turbo
             messages=messages,
             max_tokens = 2048
         )
         res = rsp.choices[0].message.content
-        logging.info(f"问题类型:{res}")
+        logger.info(f"问题类型:{res}")
         if '1' in res:
             return True
         else:
@@ -481,7 +483,7 @@ class ChatGPT_assistant:
         file_ids = ["file-jHT2dMXPx90e8daOC9ZNNT5m"]
         res = self.tidb_manager.select_assistant(conversation_id=self.conversation_id)
         if res and res[0] is not None and res[1] is not None:
-            logging.info(f"self.assistant_id, self.thread_id {res}")
+            logger.info(f"self.assistant_id, self.thread_id {res}")
             self.assistant_id, self.thread_id = res[0],res[1]
         else:
             # 获取当前日期和时间
@@ -601,9 +603,9 @@ class ChatGPT_assistant:
         # 获取gpt的answer
         # start_time = time.time()
         # res = user_message
-        # logging.info(f"user_message res:{res}")
+        # logger.info(f"user_message res:{res}")
         # while run.status != "completed":
-        #     logging.info(run.status)
+        #     logger.info(run.status)
         #     current_time = time.time()
         #     run = client.beta.threads.runs.retrieve(
         #         thread_id=self.thread_id,
@@ -620,12 +622,12 @@ class ChatGPT_assistant:
                 #         break
         #         start_time = time.time()
         #     time.sleep(1)
-        # logging.info(f"out while res:{res}")
+        # logger.info(f"out while res:{res}")
     # if res == user_message:
         messages = client.beta.threads.messages.list(thread_id=self.thread_id)
         res = messages.data[0].content[0].text.value
         res = self.remove_brackets_content(res)
-        logging.info(f"final res:{res}")
+        logger.info(f"final res:{res}")
         yield res
     def remove_brackets_content(self,sentence):
         import re
@@ -641,9 +643,9 @@ class ChatGPT_assistant:
                 # if len(messages['data'][0]['content'])>0:
                 if len(messages.data[0].content)>0:
                     res = messages.data[0].content[0].text.value
-                    logging.info(f"now the message is :{res}")
+                    logger.info(f"now the message is :{res}")
                     if res != message:
-                        logging.info(f"exit early")
+                        logger.info(f"exit early")
                         break
             except:
                 pass
@@ -672,7 +674,7 @@ class tg_bot_ChatGPT_assistant:
         if res:
             if res[0]:
                 # 是配对过的
-                logging.info(f"select_match_baziInfo_tg_bot res is :{res}")
+                logger.info(f"select_match_baziInfo_tg_bot res is :{res}")
                 self.matcher_type, self.matcher_id = res[0], res[1]
 
     def load_history(self):
@@ -682,7 +684,7 @@ class tg_bot_ChatGPT_assistant:
         file_ids = ["file-jHT2dMXPx90e8daOC9ZNNT5m"]
         res = self.tidb_manager.select_assistant(bazi_id=self.bazi_id)
         if res and res[0] is not None and res[1] is not None:
-            logging.info(f"self.assistant_id, self.thread_id {res}")
+            logger.info(f"self.assistant_id, self.thread_id {res}")
             self.assistant_id, self.thread_id = res[0],res[1]   
         else:
 
@@ -730,7 +732,7 @@ class tg_bot_ChatGPT_assistant:
         return  True
     def ask_gpt_stream(self, user_message):
         # Add user's new message to conversation history
-        logging.info(f"开始聊天")
+        logger.info(f"开始聊天")
         if self.lang=='En':
             user_message = "Please provide the response in English: "+user_message
         else:
@@ -745,9 +747,9 @@ class tg_bot_ChatGPT_assistant:
         # 获取当前时间的时间戳
         # start_time = time.time()
         # res = user_message
-        # logging.info(f"user_message res: {res}")
+        # logger.info(f"user_message res: {res}")
         # while run.status != "completed":
-        #     logging.info(run.status)
+        #     logger.info(run.status)
         #     current_time = time.time()
         #     run = client.beta.threads.runs.retrieve(
         #         thread_id=self.thread_id,
@@ -764,7 +766,7 @@ class tg_bot_ChatGPT_assistant:
                 #         break
         #         start_time = time.time()
         #     time.sleep(1)
-        # logging.info(f"out while res:{res}")
+        # logger.info(f"out while res:{res}")
         # if res == user_message:
                 # 创建运行模型
         run = client.beta.threads.runs.create( 
@@ -775,7 +777,7 @@ class tg_bot_ChatGPT_assistant:
         messages = client.beta.threads.messages.list(thread_id=self.thread_id)
         res = messages.data[0].content[0].text.value
         res = self.remove_brackets_content(res)
-        logging.info(f"final res:{res}")
+        logger.info(f"final res:{res}")
         yield res
     def remove_brackets_content(self,sentence):
         import re
@@ -788,9 +790,9 @@ class tg_bot_ChatGPT_assistant:
                 messages = get_messages(self.thread_id)
                 if len(messages['data'][0]['content'])>0:
                     res = messages['data'][0]['content'][0]['text']['value']
-                    logging.info(f"now the message is :{res}")
+                    logger.info(f"now the message is :{res}")
                     if res != message:
-                        logging.info(f"exit early")
+                        logger.info(f"exit early")
                         break
             except:
                 pass
@@ -818,7 +820,7 @@ def stream_output(message=None, user_id=None,bazi_info=None):
     # streams = ["<chunk>", bazi_info, "</chunk>","<chunk>",f"{{'user_id':{user_id}}}","</chunk>"]
     if message:
         yield f"{message}"
-    logging.info(message)
+    logger.info(message)
     if bazi_info:
         yield bazi_info
         # answer = ""
@@ -882,7 +884,7 @@ def cancel_run(thread_id,run_id):
     conn.request("POST", "/v1/threads/"+thread_id+"/runs/"+run_id+"/cancel", payload, headers)
     res = conn.getresponse()
     data = res.read()
-    logging.info(f"cancel run:{data.decode('utf-8')}")
+    logger.info(f"cancel run:{data.decode('utf-8')}")
 
 def translate(text):
     GOOGLE_TRANSLATE_URL = 'http://translate.google.com/m?q=%s&tl=%s&sl=%s'
@@ -944,7 +946,7 @@ def baziAnalysis_stream():
     r = False
 
     if request.method =="POST":
-        logging.info(f"baziAnalysis POST_data: {request.get_json()}") 
+        logger.info(f"baziAnalysis POST_data: {request.get_json()}")
         year = request.get_json().get("year")
         month = request.get_json().get("month")
         day = request.get_json().get("day")
@@ -1004,7 +1006,7 @@ def baziMatchRes():
     if request.method =="POST":
         tidb_manager = TiDBManager()
         data = request.get_json()
-        logging.info(f"data is :{data}")
+        logger.info(f"data is :{data}")
         year,month,day,t_ime,user_id,n = data['year'], data['month'], data['day'], data['time'], data['user_id'], data['n']
         name = data.get("name")
         matcher_type = data["matcher_type"]
@@ -1031,7 +1033,7 @@ def baziMatchRes():
             res = baziAnalysis(op,mingyun_analysis,chushen_analysis)
             head = "他人/配对者/配对人 的八字背景信息如下:\n"
             db_res = head + res + "\n" + match_res
-            logging.info(f"res is:{res}")
+            logger.info(f"res is:{res}")
             db_res_gpt = head + res_gpt + "\n" + match_res
             first_reply = "您好，欢迎使用AI算命。\n" + res_gpt.split("---------------")[0]
             tidb_manager.insert_baziInfo(user_id, birthday, db_res, db_res_gpt, conversation_id, birthday_match=birthday_match,first_reply=first_reply)
@@ -1045,11 +1047,11 @@ def baziMatchRes():
         else:
             name = data["name"]
             coin_data = get_coin_data(name)
-            logging.info(f"coin data is {coin_data}")
+            logger.info(f"coin data is {coin_data}")
             res = baziMatch(birthday.year,birthday.month,birthday.day,birthday.hour, year,month,day,t_ime,name=name,coin_data=coin_data)
             db_res_gpt = baziMatch(birthday.year,birthday.month,birthday.day,birthday.hour, year,month,day,t_ime,name=name,coin_data=coin_data,own=True)
 
-            logging.info(f"res is:{res}")
+            logger.info(f"res is:{res}")
             tidb_manager.insert_baziInfo(user_id, birthday, res, db_res_gpt, conversation_id, birthday_match=birthday_match,first_reply=db_res_gpt)
             return Response(stream_output(res, None), mimetype="text/event-stream")
 
@@ -1070,7 +1072,7 @@ def chat_bazi():
     lang = request.headers.get('Lang')
     # Initialize or retrieve existing ChatGPT instance for the user
     chat = ChatGPT_assistant(conversation_id, lang=lang, matcher_type=0)
-    logging.info(f"conversation_id {conversation_id}, message {user_message}")
+    logger.info(f"conversation_id {conversation_id}, message {user_message}")
     return Response(chat.ask_gpt_stream(user_message), mimetype="text/event-stream")
 
 @app.route('/api/chat_bazi_match', methods=['POST'])
@@ -1294,7 +1296,7 @@ def tg_bot_bazi_insert():
 
     elif matcher_type == 1:
         birthday_user = tidb_manager.select_birthday(user_id)
-        logging.info(f"res is:{birthday_user}")
+        logger.info(f"res is:{birthday_user}")
         n = gender
         year_match, month_match, day_match, time_match = map(int, birthday.split('-'))
         if matcher_id:
@@ -1309,7 +1311,7 @@ def tg_bot_bazi_insert():
         res = baziAnalysis(op,mingyun_analysis,chushen_analysis)
         head = "他人/配对者/配对人 的八字背景信息如下:\n"
         db_res = head + res + "\n" + res_match
-        logging.info(f"res is:{res}")
+        logger.info(f"res is:{res}")
         db_res_gpt = head + res_gpt + "\n" + res_match
         first_reply = "您好，欢迎使用AI算命。\n" + res_gpt.split("---------------")[0]
         bazi_id = tidb_manager.insert_baziInfo(user_id, birthday_user, db_res, db_res_gpt, conversation_id, birthday_match=birthday_match,matcher_type=matcher_type, matcher_id=matcher_id,first_reply=first_reply)
@@ -1332,7 +1334,7 @@ def tg_bot_bazi_insert():
             birthday_match = datetime(year_match, month_match, day_match, time_match)
             matcher_id = tidb_manager.insert_asset(name, birthday_match,user_id=user_id)
         res = baziMatch(birthday_user.year,birthday_user.month,birthday_user.day,birthday_user.hour, year_match,month_match,day_match,time_match,name=name)
-        logging.info(f"res is:{res}")
+        logger.info(f"res is:{res}")
         bazi_id = tidb_manager.insert_baziInfo(user_id, birthday_user,res, res, conversation_id, birthday_match=birthday_match, matcher_type=matcher_type, matcher_id=matcher_id,first_reply=res)
         tidb_manager.insert_tg_bot_conversation_user(conversation_id, user_id, bazi_id)
 
@@ -1367,7 +1369,7 @@ def tg_bot_bazi_info():
         else:
             bazi_info = tidb_manager.select_first_reply(matcher_id=matcher_id)
             bazi_id = tidb_manager.select_bazi_id(matcher_id=matcher_id)
-            logging.info(f"bazi_id is {bazi_id}")
+            logger.info(f"bazi_id is {bazi_id}")
         if matcher_type==2:
             if bazi_info ==False or bazi_id ==False:
                 birthday_match = tidb_manager.select_birthday(matcher_type=2,matcher_id=matcher_id)

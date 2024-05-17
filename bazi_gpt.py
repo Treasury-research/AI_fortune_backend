@@ -1,4 +1,4 @@
-from base import openai_base_conn
+#from base import openai_base_conn
 
 import sxtwl
 import argparse
