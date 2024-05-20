@@ -5,7 +5,7 @@ import time
 from flask import Flask, Response, request, stream_with_context, jsonify, make_response
 from datetime import datetime, timedelta
 import uuid
-import logging
+from utils.log_utils import logger as logging
 import random
 from chat.tg_bot import tg_bot_ChatGPT_assistant
 from database.mysql_db import TiDBManager

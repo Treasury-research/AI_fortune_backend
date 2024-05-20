@@ -20,14 +20,16 @@ from datetime import datetime, timedelta
 import uuid
 import pymysql
 import tiktoken
-import logging
 from lunar_python import Lunar, Solar
 from bp_router.tg_bot import tg_bot
 from bp_router.pc import pc
-# 假设你的DATABASE_URL如下所示：
-# 配置日志记录
-logging.basicConfig(filename='AI_fortune.log', level=logging.INFO, encoding='utf-8',
-                    format='%(asctime)s - %(levelname)s - %(message)s')
+from utils.log_utils import logger as logging
+
+
+# # 假设你的DATABASE_URL如下所示：
+# # 配置日志记录
+# logging.basicConfig(filename='AI_fortune.log', level=logging.INFO, encoding='utf-8',
+#                     format='%(asctime)s - %(levelname)s - %(message)s')
 app = Flask(__name__)
 # 跨域支持
 CORS(app, resources=r'/*')

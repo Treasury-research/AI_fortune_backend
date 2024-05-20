@@ -22,7 +22,7 @@ from utils.options_class import options
 from utils.util import *
 from utils.question_rec import rec_question
 from flask import Blueprint
-import logging
+from utils.log_utils import logger as logging
 
 pc = Blueprint('pc', __name__)
 
