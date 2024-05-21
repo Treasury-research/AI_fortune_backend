@@ -24,7 +24,7 @@ from lunar_python import Lunar, Solar
 from bp_router.tg_bot import tg_bot
 from bp_router.pc import pc
 from utils.log_utils import logger as logging
-
+from config import env_params
 
 # # 假设你的DATABASE_URL如下所示：
 # # 配置日志记录
@@ -45,3 +45,4 @@ def test():
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000, debug=True)
+
