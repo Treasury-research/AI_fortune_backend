@@ -30,7 +30,8 @@ pip install -r requirements.txt
 
 1. 添加环境变量具体参照 config/env_params.py文件.可将变量直接写入该文件中,或自行在部署环境中添加环境变量.
 2. 根据database/table_create/mysql.sql文件创建表.
-3. 运行`main.py`文件即可启动后端服务器, 
+3. 运行 scripts/gen_vector_documents.py 文件生成向量化文档.
+4. 运行`main.py`文件即可启动后端服务器, 
 ```commandline
 python main.py
 ```

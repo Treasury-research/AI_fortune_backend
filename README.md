@@ -29,7 +29,8 @@ pip install -r requirements.txt
 
 1. Add environment variables as specified in the config/env_params.py file. You can write the variables directly into this file or add them to your deployment environment.
 2. Create tables according to the database/table_create/mysql.sql file.
-3. Run the main.py file to start the backend server:
+3. Run scripts/gen_vector_documents.py to generate vectorized documents.
+4. Run the main.py file to start the backend server:
 ```commandline
 python main.py
 ```
