@@ -11,16 +11,17 @@ Milvus_ip = 'your milvus ip'
 Milvus_port = 'your milvus port'
 SECRET_KEY = 'ZenDao'
 
-import os
-os.environ['OPENAI_API_KEY'] = OPENAI_API_KEY
-os.environ['DBusername'] = DBusername
-os.environ['DBpassword'] = DBpassword
-os.environ['DBhostname'] = DBhostname
-os.environ['DBport'] = DBport
-os.environ['DBdbname'] = DBdbname
-os.environ['CMC_API_KEY'] = CMC_API_KEY
-os.environ['Redishostname'] = Redishostname
-os.environ['Redisport'] = Redisport
-os.environ['Milvus_ip'] = Milvus_ip
-os.environ['Milvus_port'] = Milvus_port
-os.environ['SECRET_KEY'] = SECRET_KEY
+# If it is allowed in the presence of non-environment variables, let go of the following comments
+# import os
+# os.environ['OPENAI_API_KEY'] = OPENAI_API_KEY
+# os.environ['DBusername'] = DBusername
+# os.environ['DBpassword'] = DBpassword
+# os.environ['DBhostname'] = DBhostname
+# os.environ['DBport'] = DBport
+# os.environ['DBdbname'] = DBdbname
+# os.environ['CMC_API_KEY'] = CMC_API_KEY
+# os.environ['Redishostname'] = Redishostname
+# os.environ['Redisport'] = Redisport
+# os.environ['Milvus_ip'] = Milvus_ip
+# os.environ['Milvus_port'] = Milvus_port
+# os.environ['SECRET_KEY'] = SECRET_KEY
